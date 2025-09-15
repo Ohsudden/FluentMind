@@ -243,16 +243,7 @@ header .wrap{padding-left:1px;padding-right:80px}
     margin-top:2px;
     flex-shrink:0
 }
- .socials-foot{
-    display:flex;
-    align-items:center;
-    gap:30px;
-    margin-top:8px
-}
- .socials-foot img{
-    width:44px;
-    height:44px
-}
+
  .foot-bottom{
     display:flex;
     flex-wrap:wrap;
