@@ -352,7 +352,6 @@ details summary::-webkit-details-marker{
     padding-top:10px
 }
  .faq-about-row{
-    /* removed font-size so heading can stand out */
     display:flex;
     align-items:center;
     gap:70px;

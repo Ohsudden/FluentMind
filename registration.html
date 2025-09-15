@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FluentMind - Sign Up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="common.css" />
+  <link rel="stylesheet" href="registation.css" />
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div class="brand">
+        <img src="public/logo-small.png" alt="FluentMind logo">
+        <span>FluentMind</span>
+      </div>
+      <nav>
+        <a href="index.html">Main</a>
+        <a href="#" class="active">Learn now</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="contacts.html">Contacts</a>
+      </nav>
+      <div class="lang">en | ua</div>
+    </div>
+  </header>
+
+  <main class="hero wrap">
+    <h1>Join FluentMind</h1>
+    <p>Create your account and unlock AI-powered English learning tailored for you.</p>
+    <div class="card">
+      <h2>Sign Up</h2>
+      <form id="signupForm" novalidate>
+        <input type="text" name="name" placeholder="Your Name" required>
+        <input type="email" name="email" placeholder="Your Email" required>
+        <input type="password" name="password" placeholder="Password" minlength="8" required>
+        <input type="password" name="confirm" placeholder="Confirm Password" minlength="8" required>
+        <button type="submit" class="btn-main">Register</button>
+        <div class="login-msg">Already have an account? <a href="#">Log in</a></div>
+        <div class="alt">Or sign up with</div>
+        <div class="socials">
+          <button type="button">Google</button>
+          <button type="button">Facebook</button>
+          <button type="button">LinkedIn</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <img src="public/logo-large.png" alt="FluentMind logo large">
+        </div>
+        <ul class="contact-list">
+          <li><img src="public/icon-location.png" alt=""> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+          <li><img src="public/icon-mail.png" alt=""> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+            <li><img src="public/icon-phone.png" alt=""> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+        </ul>
+        <div>
+          <div class="socials-foot">
+            <img src="public/linkedin.png" alt="LinkedIn">
+            <img src="public/instagram.png" alt="Instagram">
+            <img src="public/facebook.png" alt="Facebook">
+          </div>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>©2025 FluentMind All rights reserved.</span>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of use</a>
+        <a href="#">Sitemap</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('signupForm').addEventListener('submit', function(e){
+      var p=this.password.value; var c=this.confirm.value;
+      if(p!==c){ alert('Passwords do not match'); e.preventDefault(); }
+    });
+  </script>
+</body>
+</html>
