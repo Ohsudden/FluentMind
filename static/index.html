@@ -5,15 +5,15 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<title>FluentMind – Learn English with AI</title>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
-	<link rel="stylesheet" href="common.css" />
-  <link rel="stylesheet" href="style.css" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}" />
   
 </head>
 <body>
 	<header>
 		<div class="wrap row">
 			<div class="brand">
-				<img src="public/logo-small.png" alt="FluentMind logo" />
+				<img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
 				<span>FluentMind</span>
 			</div>
 			<nav>
@@ -32,7 +32,7 @@
 				<button class="enroll-btn">Enroll now</button>
 			</div>
 			<div class="visual">
-				<img src="public/professor.svg" alt="Whiteboard" class="board" />
+				<img src="{{ url_for('static', path='img/professor.svg') }}" alt="Whiteboard" class="board" />
 				<div class="ground-line"></div>
 			</div>
 		</div>
@@ -47,10 +47,10 @@
 	<section class="wrap simple" id="why">
 		<h2>Why should you choose us?</h2>
 		<div class="why-grid">
-			<div class="why-item"><img src="public/ai-powered-speaking.png" alt="Personalization" /><p>Tailored AI practice that grows with you.</p></div>
-			<div class="why-item"><img src="public/available-anytime.png" alt="Anywhere" /><p>Practice English anytime, anywhere.</p></div>
-			<div class="why-item"><img src="public/confidence-builder.png" alt="Feedback" /><p>Instant detailed feedback on your speaking.</p></div>
-			<div class="why-item"><img src="public/personalized-learning.png" alt="Progress" /><p>Clear progress tracking & smart goals.</p></div>
+			<div class="why-item"><img src="{{ url_for('static', path='img/ai-powered-speaking.png') }}" alt="Personalization" /><p>Tailored AI practice that grows with you.</p></div>
+			<div class="why-item"><img src="{{ url_for('static', path='img/available-anytime.png') }}" alt="Anywhere" /><p>Practice English anytime, anywhere.</p></div>
+			<div class="why-item"><img src="{{ url_for('static', path='img/confidence-builder.png') }}" alt="Feedback" /><p>Instant detailed feedback on your speaking.</p></div>
+			<div class="why-item"><img src="{{ url_for('static', path='img/personalized-learning.png') }}" alt="Progress" /><p>Clear progress tracking & smart goals.</p></div>
 		</div>
 	</section>
 
@@ -63,7 +63,7 @@
 				<p>You're in the right place! We know starting your English-learning journey with AI might raise a few doubts, so we've collected the most common questions here. From how FluentMind works to whether it's right for beginners, you'll find clear, simple answers below.</p>
 			</div>
 			<div class="faq-illo">
-				<img src="public/question.svg" alt="Questions illustration" />
+				<img src="{{ url_for('static', path='img/question.svg') }}" alt="Questions illustration" />
 			</div>
 		</div>
 	</section>
@@ -103,18 +103,18 @@
 		<div class="wrap">
 			<div class="foot-top">
 				<div class="foot-brand">
-					<img src="public/logo-large.png" alt="FluentMind logo large" />
+					<img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
 				</div>
 				<ul class="contact-list">
-					<li><img src="public/icon-location.png" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
-					<li><img src="public/icon-mail.png" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
-					<li><img src="public/icon-phone.png" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
 				</ul>
 				<div>
 					<div class="socials-foot">
-						<img src="public/linkedin.png" alt="LinkedIn" />
-						<img src="public/instagram.png" alt="Instagram" />
-						<img src="public/facebook.png" alt="Facebook" />
+						<img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+						<img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+						<img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
 					</div>
 				</div>
 			</div>

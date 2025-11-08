@@ -5,15 +5,15 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<title>FluentMind – Pricing</title>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
-	<link rel="stylesheet" href="common.css" />
-	<link rel="stylesheet" href="pricing.css" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/pricing.css') }}" />
 
 </head>
 <body>
 	<header>
 		<div class="wrap row">
 			<div class="brand">
-				<img src="public/logo-small.png" alt="FluentMind logo" />
+				<img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
 				<span>FluentMind</span>
 			</div>
 			<nav>
@@ -93,18 +93,18 @@
 		<div class="wrap">
 			<div class="foot-top">
 				<div class="foot-brand">
-					<img src="public/logo-large.png" alt="FluentMind logo large" />
+					<img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
 				</div>
 				<ul class="contact-list">
-					<li><img src="public/icon-location.png" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
-					<li><img src="public/icon-mail.png" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
-					<li><img src="public/icon-phone.png" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
 				</ul>
 				<div>
 					<div class="socials-foot">
-						<img src="public/linkedin.png" alt="LinkedIn" />
-						<img src="public/instagram.png" alt="Instagram" />
-						<img src="public/facebook.png" alt="Facebook" />
+						<img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+						<img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+						<img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
 					</div>
 				</div>
 			</div>
