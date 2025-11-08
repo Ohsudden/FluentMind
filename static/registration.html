@@ -32,10 +32,11 @@
       <h2>Sign Up</h2>
       <form id="signupForm" novalidate>
         <input type="text" name="name" placeholder="Your Name" required>
+        <input type="text" name="surname" placeholder="Your Surname" required>
         <input type="email" name="email" placeholder="Your Email" required>
         <input type="password" name="password" placeholder="Password" minlength="8" required>
         <input type="password" name="confirm" placeholder="Confirm Password" minlength="8" required>
-        <button type="submit" class="btn-main">Register</button>
+        <button type="button" class="btn-main" onclick="registerUser(event)">Register</button>
         <div class="login-msg">Already have an account? <a href="#">Log in</a></div>
         <div class="alt">Or sign up with</div>
         <div class="socials">
@@ -76,10 +77,45 @@
   </footer>
 
   <script>
-    document.getElementById('signupForm').addEventListener('submit', function(e){
-      var p=this.password.value; var c=this.confirm.value;
-      if(p!==c){ alert('Passwords do not match'); e.preventDefault(); }
-    });
+    async function registerUser(event) {
+      event.preventDefault();
+      
+      const form = document.getElementById('signupForm');
+      const password = form.password.value;
+      const confirm = form.confirm.value;
+
+      if (password !== confirm) {
+        alert('Passwords do not match');
+        return;
+      }
+
+      const formData = new FormData(form);
+      
+      event.target.disabled = true;
+      event.target.textContent = 'Registering...';
+
+      try {
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Registration successful!');
+          window.location.href = '/';
+        } else {
+          alert(data.message || 'Registration failed');
+          event.target.disabled = false;
+          event.target.textContent = 'Register';
+        }
+      } catch (error) {
+        alert('Error occurred. Please try again.');
+        event.target.disabled = false;
+        event.target.textContent = 'Register';
+      }
+    }
   </script>
 </body>
 </html>
