@@ -29,21 +29,13 @@
     <h1>Join FluentMind</h1>
     <p>Create your account and unlock AI-powered English learning tailored for you.</p>
     <div class="card">
-      <h2>Sign Up</h2>
-      <form id="signupForm" novalidate>
-        <input type="text" name="name" placeholder="Your Name" required>
-        <input type="text" name="surname" placeholder="Your Surname" required>
+      <h2>Log in</h2>
+      <form id="loginForm" novalidate>
         <input type="email" name="email" placeholder="Your Email" required>
         <input type="password" name="password" placeholder="Password" minlength="8" required>
-        <input type="password" name="confirm" placeholder="Confirm Password" minlength="8" required>
-        <button type="button" class="btn-main" onclick="registerUser(event)">Register</button>
-        <div class="login-msg">Already have an account? <a href="/login">Log in</a></div>
+        <button type="button" class="btn-main" onclick="loginUser(event)">Login</button>
+        <div class="login-msg">Don't have an account? <a href="/registration">Sign up</a></div>
         <div class="alt">Or sign up with</div>
-        <div class="socials">
-          <button type="button">Google</button>
-          <button type="button">Facebook</button>
-          <button type="button">LinkedIn</button>
-        </div>
       </form>
     </div>
   </main>
@@ -77,43 +69,32 @@
   </footer>
 
   <script>
-    async function registerUser(event) {
+    async function loginUser(event) {
       event.preventDefault();
-      
-      const form = document.getElementById('signupForm');
-      const password = form.password.value;
-      const confirm = form.confirm.value;
-
-      if (password !== confirm) {
-        alert('Passwords do not match');
-        return;
-      }
-
+      const form = document.getElementById('loginForm');
       const formData = new FormData(form);
-      
-      event.target.disabled = true;
-      event.target.textContent = 'Registering...';
+      const data = {
+        email: formData.get('email'),
+        password: formData.get('password')
+      };
 
       try {
-        const response = await fetch('/api/register', {
+        const response = await fetch('/api/login', {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-          alert('Registration successful!');
-          window.location.href = '/';
+        if (response.ok) {
+          alert('Login successful!');
         } else {
-          alert(data.message || 'Registration failed');
-          event.target.disabled = false;
-          event.target.textContent = 'Register';
+          alert('Login failed. Please check your credentials and try again.');
         }
       } catch (error) {
-        alert('Error occurred. Please try again.');
-        event.target.disabled = false;
-        event.target.textContent = 'Register';
+        console.error('Error during login:', error);
+        alert('An error occurred. Please try again later.');
       }
     }
   </script>

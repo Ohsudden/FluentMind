@@ -4,7 +4,7 @@ from datetime import datetime
 from pwdlib import PasswordHash
 
 def init_db():
-    connection = sqlite3.connect('my_database.db')
+    connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
 
     cursor.executescript('''
@@ -92,7 +92,7 @@ def init_db():
     connection.close()
 
 def create_user(name, surname, email, password):
-    connection = sqlite3.connect('my_database.db')
+    connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
     password_hash = PasswordHash.recommended().hash(password)
 
@@ -104,3 +104,23 @@ def create_user(name, surname, email, password):
     connection.close()
     
     return True, "User registered successfully."
+
+def login_user(email, password):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "SELECT password_hash FROM users WHERE email = ?",
+        (email,)
+    )
+    row = cursor.fetchone()
+    connection.close()
+
+    if row:
+        stored_hash = row[0]
+        if PasswordHash.recommended().verify(password, stored_hash):
+            return True, "Login successful."
+        else:
+            return False, "Incorrect password."
+    else:
+        return False, "User not found."

@@ -41,12 +41,22 @@ async def register_user(
     success, message = create_user(name, surname, email, password)
     
     if success:
-        return JSONResponse(
-            status_code=200,
-            content={"success": True, "message": message}
-        )
+        return JSONResponse(status_code=200, content={"success": True, "message": message})
     else:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": message}
-        )
+        return JSONResponse(status_code=400, content={"success": False, "message": message})
+
+@app.get("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/api/login")
+async def login_user(
+    email: str = Form(...),
+    password: str = Form(...)
+):
+    success, message = login_user(email, password)
+    
+    if success:
+        return JSONResponse(status_code=200, content={"success": True, "message": message})
+    else:
+        return JSONResponse(status_code=400, content={"success": False, "message": message})
