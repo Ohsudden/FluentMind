@@ -30,6 +30,9 @@ async def contacts(request: Request):
 
 @app.get("/registration", response_class=HTMLResponse)
 async def registration(request: Request):
+    user_id = request.session.get("user_id")
+    if user_id:
+        return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
     return templates.TemplateResponse("registration.html", {"request": request})
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -65,6 +68,9 @@ async def register_user(
 
 @app.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
+    user_id = request.session.get("user_id")
+    if user_id:
+        return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/api/login")
