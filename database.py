@@ -7,9 +7,6 @@ def init_db():
     connection = sqlite3.connect('my_database.db')
     cursor = connection.cursor()
 
-    cursor.execute(query)
-    connection.commit()
-
     query = '''
     CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,14 +14,14 @@ def init_db():
     surname TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    proficiency_level ENUM('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'),
+    proficiency_level TEXT CHECK(proficiency_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     certificate TEXT,
     join_date TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS courses (
     course_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    level ENUM('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'),
+    level TEXT CHECK(level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     title TEXT,
     description TEXT,
     duration_weeks INTEGER,
@@ -56,7 +53,7 @@ def init_db():
     submitted_answers_json TEXT,
     submitted_at TEXT DEFAULT CURRENT_TIMESTAMP,
     assessed BOOLEAN DEFAULT 0,
-    assessed_level ENUM('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'),
+    assessed_level TEXT CHECK(assessed_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     assessed_by_model TEXT,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     );
@@ -91,6 +88,8 @@ def init_db():
         FOREIGN KEY (course_id) REFERENCES courses(course_id)
 
     '''
+    cursor.execute(query)
+    connection.commit()
 
 def create_user(name, surname, email, password):
     
