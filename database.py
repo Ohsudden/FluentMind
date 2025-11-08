@@ -7,7 +7,6 @@ def init_db():
     connection = sqlite3.connect('my_database.db')
     cursor = connection.cursor()
 
-    # Execute each CREATE TABLE statement separately
     cursor.executescript('''
     CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +92,7 @@ def init_db():
     connection.close()
 
 def create_user(name, surname, email, password):
-    
+    connection = sqlite3.connect('my_database.db')
     cursor = connection.cursor()
     password_hash = PasswordHash.recommended().hash(password)
 
