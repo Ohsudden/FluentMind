@@ -7,7 +7,8 @@ def init_db():
     connection = sqlite3.connect('my_database.db')
     cursor = connection.cursor()
 
-    query = '''
+    # Execute each CREATE TABLE statement separately
+    cursor.executescript('''
     CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -86,10 +87,10 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(user_id),
         FOREIGN KEY (module_id) REFERENCES modules(module_id),
         FOREIGN KEY (course_id) REFERENCES courses(course_id)
-
-    '''
-    cursor.execute(query)
+    );
+    ''')
     connection.commit()
+    connection.close()
 
 def create_user(name, surname, email, password):
     
@@ -101,5 +102,6 @@ def create_user(name, surname, email, password):
         (name, surname, email, password_hash, email)
     )
     connection.commit()
+    connection.close()
     
     return True, "User registered successfully."
