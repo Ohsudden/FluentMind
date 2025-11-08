@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
-import uvicorn
 from database import init_db, create_user, login_user
 
 app = FastAPI()
@@ -30,6 +29,10 @@ async def contacts(request: Request):
 @app.get("/registration", response_class=HTMLResponse)
 async def registration(request: Request):
     return templates.TemplateResponse("registration.html", {"request": request})
+
+@app.get("/settings/<userid>", response_class=HTMLResponse)
+async def settings(request: Request, userid: int):
+    return templates.TemplateResponse("settings.html", {"request": request, "userid": userid})
 
 @app.post("/api/register")
 async def register_user(

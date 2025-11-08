@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>FluentMind – Settings</title>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+</head>
+<body class="settings-page">
+	<header>
+		<div class="wrap row">
+			<div class="brand">
+				<img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
+				<span>FluentMind</span>
+			</div>
+			<nav>
+				<a href="/">Main</a>
+				<a href="/registration">Learn now</a>
+				<a href="/pricing">Pricing</a>
+				<a href="/contacts">Contacts</a>
+			</nav>
+			<div class="lang">en | ua</div>
+		</div>
+	</header>
+
+	<main class="wrap settings-wrapper">
+		<aside class="settings-sidebar">
+			<nav class="settings-nav" aria-label="Profile navigation">
+				<button type="button">
+					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 20c1.6-4 4.4-6 8-6s6.4 2 8 6" stroke-linecap="round" /></svg>
+					<span>Learn</span>
+				</button>
+				<button type="button">
+					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16v9H7l-3 3V6Z" stroke-linejoin="round" /></svg>
+					<span>Vocabulary</span>
+				</button>
+				<button type="button">
+					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 10h16" /></svg>
+					<span>Memorize</span>
+				</button>
+				<button type="button">
+					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 16V8" stroke-linecap="round" /><path d="M12 16V4" stroke-linecap="round" /><path d="M18 16v-6" stroke-linecap="round" /></svg>
+					<span>Previous lessons</span>
+				</button>
+				<button type="button" class="active">
+					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" /><path d="m4.2 9.7 1.2-.2a1 1 0 0 0 .76-.53l.77-1.53a1 1 0 0 1 1.25-.47l1.46.58a1 1 0 0 0 .94-.15l1.24-.93a1 1 0 0 1 1.2 0l1.24.93a1 1 0 0 0 .94.15l1.46-.58a1 1 0 0 1 1.25.47l.77 1.53a1 1 0 0 0 .76.53l1.2.2a1 1 0 0 1 .82.98v1.64a1 1 0 0 1-.82.98l-1.2.2a1 1 0 0 0-.76.53l-.77 1.53a1 1 0 0 1-1.25.47l-1.46-.58a1 1 0 0 0-.94.15l-1.24.93a1 1 0 0 1-1.2 0l-1.24-.93a1 1 0 0 0-.94-.15l-1.46.58a1 1 0 0 1-1.25-.47l-.77-1.53a1 1 0 0 0-.76-.53l-1.2-.2a1 1 0 0 1-.82-.98V10.7a1 1 0 0 1 .82-.98Z" stroke-width="1.4" stroke-linecap="round" /></svg>
+					<span>Settings</span>
+				</button>
+			</nav>
+		</aside>
+
+		<section class="settings-card">
+			<div class="settings-avatar" aria-hidden="true">
+				<svg viewBox="0 0 64 64" aria-hidden="true">
+					<circle cx="32" cy="23" r="13" />
+					<path d="M12 54c3.8-10 10.2-15 20-15s16.2 5 20 15" stroke-linecap="round" />
+				</svg>
+			</div>
+
+			<div class="settings-form">
+				<h1>Settings</h1>
+				<form>
+					<div class="row">
+						<label for="settings-name">Name</label>
+						<input id="settings-name" type="text" name="name" placeholder="Your Name" />
+					</div>
+					<div class="row">
+						<label for="settings-email">Email</label>
+						<div class="row-inline">
+							<input id="settings-email" type="email" name="email" placeholder="Your Email" />
+							<button type="button" class="change-btn">Change</button>
+						</div>
+					</div>
+					<div class="row">
+						<label for="settings-password">Password</label>
+						<input id="settings-password" type="password" name="password" placeholder="Password" />
+					</div>
+					<div class="row">
+						<label for="settings-native">Native language</label>
+						<select id="settings-native" name="native-language">
+							<option value="">Select native language</option>
+							<option>English</option>
+							<option>Ukrainian</option>
+							<option>Spanish</option>
+							<option>German</option>
+							<option>French</option>
+						</select>
+					</div>
+					<div class="row">
+						<label for="settings-interface">Interface language</label>
+						<select id="settings-interface" name="interface-language">
+							<option value="">Select interface language</option>
+							<option>English</option>
+							<option>Ukrainian</option>
+							<option>Polish</option>
+							<option>Spanish</option>
+						</select>
+					</div>
+				</form>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		<div class="wrap">
+			<div class="foot-top">
+				<div class="foot-brand">
+					<img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
+				</div>
+				<ul class="contact-list">
+					<li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+				</ul>
+				<div>
+					<div class="socials-foot">
+						<img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+						<img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+						<img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
+					</div>
+				</div>
+			</div>
+			<div class="foot-bottom">
+				<span>©2025 FluentMind All rights reserved.</span>
+				<a href="#">Privacy Policy</a>
+				<a href="#">Terms of use</a>
+				<a href="#">Sitemap</a>
+			</div>
+		</div>
+	</footer>
+</body>
+</html>
