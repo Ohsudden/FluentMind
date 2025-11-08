@@ -64,18 +64,22 @@
 				<form>
 					<div class="row">
 						<label for="settings-name">Name</label>
-						<input id="settings-name" type="text" name="name" placeholder="Your Name" />
+						<input id="settings-name" type="text" name="name" value="{{ user.name if user else '' }}" placeholder="Your Name" />
 					</div>
 					<div class="row">
 						<label for="settings-email">Email</label>
 						<div class="row-inline">
-							<input id="settings-email" type="email" name="email" placeholder="Your Email" />
+							<input id="settings-email" type="email" name="email" value="{{ user.email if user else '' }}" placeholder="Your Email" disabled/>
 							<button type="button" class="change-btn">Change</button>
 						</div>
 					</div>
 					<div class="row">
 						<label for="settings-password">Password</label>
-						<input id="settings-password" type="password" name="password" placeholder="Password" />
+                        <div class="row-inline">
+                            <input id="settings-password" type="password" name="password" placeholder="Password" disabled/>
+                            <button type="button" class="change-btn" onclick="changePassword(event)">Change</button>
+                        </div>
+						
 					</div>
 					<div class="row">
 						<label for="settings-native">Native language</label>
@@ -130,5 +134,119 @@
 			</div>
 		</div>
 	</footer>
+
+    <script>
+    async function saveSettings(event) {
+      const form = document.getElementById('settingsForm');
+      const formData = new FormData(form);
+
+      try {
+        const response = await fetch('/api/settings', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          alert('Settings saved successfully.');
+        } else {
+          alert('Failed to save settings. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('An error occurred. Please try again later.');
+      }
+    }
+    async function changeEmail(event) {
+      const emailInput = document.getElementById('settings-email');
+      emailInput.disabled = false;
+    }
+
+	async function changePassword(event) {
+	const button = event.currentTarget;
+	const passwordInput = document.getElementById('settings-password');
+	let newPasswordInput = document.getElementById('settings-password-new');
+	let confirmPasswordInput = document.getElementById('settings-password-new2');
+
+	if (!newPasswordInput || !confirmPasswordInput) {
+	const wrapper = document.createElement('div');
+	wrapper.className = 'row-inline';
+	wrapper.style.display = 'flex';
+	wrapper.style.flexDirection = 'column';
+		wrapper.innerHTML = `
+		<input id="settings-password-new" type="password" name="new_password" placeholder="New Password" />
+		<input id="settings-password-new2" type="password" name="confirm_password" placeholder="Confirm New Password" />
+		`;
+
+		passwordInput.insertAdjacentElement('afterend', wrapper);
+		newPasswordInput = document.getElementById('settings-password-new');
+		confirmPasswordInput = document.getElementById('settings-password-new2');
+	}
+
+	if (!button.dataset.editing) {
+		button.dataset.editing = 'true';
+		button.textContent = 'Save';
+		passwordInput.disabled = false;
+		passwordInput.value = '';
+		passwordInput.placeholder = 'Current Password';
+		newPasswordInput.disabled = false;
+		confirmPasswordInput.disabled = false;
+		newPasswordInput.value = '';
+		confirmPasswordInput.value = '';
+		return;
+	}
+
+	const oldPassword = passwordInput.value.trim();
+	const newPassword = newPasswordInput.value.trim();
+	const confirmPassword = confirmPasswordInput.value.trim();
+
+	if (!oldPassword) {
+		alert('Enter your current password.');
+		return;
+	}
+
+	if (!newPassword || !confirmPassword) {
+		alert('Enter a new password in both fields.');
+		return;
+	}
+
+	if (newPassword !== confirmPassword) {
+		alert('New passwords do not match.');
+		return;
+	}
+
+	const formData = new FormData();
+	formData.append('old_password', oldPassword);
+	formData.append('new_password', newPassword);
+
+	try {
+		const response = await fetch('/api/change-password', {
+			method: 'POST',
+			body: formData
+		});
+
+		const result = await response.json();
+
+		if (!response.ok) {
+			alert(result?.message || 'Failed to change password.');
+			return;
+		}
+
+		alert('Password changed successfully.');
+		passwordInput.value = '';
+		newPasswordInput.value = '';
+		confirmPasswordInput.value = '';
+		passwordInput.disabled = true;
+		newPasswordInput.disabled = true;
+		confirmPasswordInput.disabled = true;
+		button.textContent = 'Change';
+		delete button.dataset.editing;
+	} catch (error) {
+		console.error('Error changing password:', error);
+		alert('An error occurred. Please try again later.');
+	}
+}
+  </script>
+
+  </script>
 </body>
 </html>

@@ -1,14 +1,16 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
-from database import init_db, create_user, login_user
+from starlette.middleware.sessions import SessionMiddleware
+from database import init_db, create_user, login_user, get_user_by_id, rechange_password
+from pwdlib import PasswordHash
 
+
+init_db()
 app = FastAPI()
 
-@app.on_event("startup")
-async def startup_event():
-    init_db()
+app.add_middleware(SessionMiddleware, secret_key="dev-secret")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -30,9 +32,22 @@ async def contacts(request: Request):
 async def registration(request: Request):
     return templates.TemplateResponse("registration.html", {"request": request})
 
-@app.get("/settings/<userid>", response_class=HTMLResponse)
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_me(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=302)
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return templates.TemplateResponse("settings.html", {"request": request, "userid": user_id, "user": user})
+
+@app.get("/settings/{userid}", response_class=HTMLResponse)
 async def settings(request: Request, userid: int):
-    return templates.TemplateResponse("settings.html", {"request": request, "userid": userid})
+    user = get_user_by_id(userid)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return templates.TemplateResponse("settings.html", {"request": request, "userid": userid, "user": user})
 
 @app.post("/api/register")
 async def register_user(
@@ -54,12 +69,44 @@ async def login(request: Request):
 
 @app.post("/api/login")
 async def api_login(
+    request: Request,
     email: str = Form(...),
     password: str = Form(...)
 ):
     success, user_data = login_user(email, password)
-    
-    if success:
-        return JSONResponse(status_code=200, content={"success": True, "message": "Login successful", "user": user_data})
-    else:
-        return JSONResponse(status_code=401, content={"success": False, "message": "Invalid email or password"})
+
+    if not success:
+        return JSONResponse(status_code=401, content={"success": False, "message": user_data})
+
+    request.session["user_email"] = user_data["email"]
+    request.session["user_id"] = user_data["id"]
+    return RedirectResponse(url=f"/settings/{user_data['id']}", status_code=302)
+
+
+@app.get("/api/session")
+async def session_info(request: Request):
+    return {
+        "user_id": request.session.get("user_id"),
+        "user_email": request.session.get("user_email"),
+    }
+
+@app.post("/api/change-password")
+async def change_password(request: Request,
+    old_password: str = Form(...),
+    new_password: str = Form(...)
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    user = get_user_by_id(user_id)
+    if not user:
+        return JSONResponse(status_code=404, content={"success": False, "message": "User not found."})
+
+    stored_hash = user['password_hash']
+    if not PasswordHash.recommended().verify(old_password, stored_hash):
+        return JSONResponse(status_code=400, content={"success": False, "message": "Incorrect old password."})
+
+    rechange_password(user_id, new_password)
+
+    return JSONResponse(status_code=200, content={"success": True, "message": "Password changed successfully."})

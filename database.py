@@ -16,6 +16,8 @@ def init_db():
     password_hash TEXT NOT NULL,
     proficiency_level TEXT CHECK(proficiency_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     certificate TEXT,
+    native_language TEXT,
+    interface_language TEXT,
     join_date TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -55,6 +57,7 @@ def init_db():
     assessed BOOLEAN DEFAULT 0,
     assessed_level TEXT CHECK(assessed_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     assessed_by_model TEXT,
+    phoenix_run_id TEXT,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     );
 
@@ -110,17 +113,66 @@ def login_user(email, password):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT password_hash FROM users WHERE email = ?",
+        "SELECT user_id, name, surname, email, password_hash FROM users WHERE email = ?",
         (email,)
     )
     row = cursor.fetchone()
     connection.close()
 
-    if row:
-        stored_hash = row[0]
-        if PasswordHash.recommended().verify(password, stored_hash):
-            return True, "Login successful."
-        else:
-            return False, "Incorrect password."
-    else:
+    if not row:
         return False, "User not found."
+
+    stored_hash = row[4]
+    if not PasswordHash.recommended().verify(password, stored_hash):
+        return False, "Incorrect password."
+
+    return True, {
+        "id": row[0],
+        "name": row[1],
+        "surname": row[2],
+        "email": row[3]
+    }
+
+
+def get_user_id_by_email(email: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute("SELECT user_id FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    connection.close()
+    if row:
+        return row[0]
+    return None
+
+
+def get_user_by_id(user_id: int):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language FROM users WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    connection.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "name": row[1],
+        "surname": row[2],
+        "email": row[3],
+        "password_hash": row[4],
+        "native_language": row[5],
+        "interface_language": row[6],
+    }
+    
+def rechange_password(user_id: int, new_password: str):
+    new_password_hash = PasswordHash.recommended().hash(new_password)
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE users SET password_hash = ? WHERE user_id = ?",
+        (new_password_hash, user_id)
+    )
+    connection.commit()
+    connection.close()
