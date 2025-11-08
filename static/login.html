@@ -73,18 +73,12 @@
       event.preventDefault();
       const form = document.getElementById('loginForm');
       const formData = new FormData(form);
-      const data = {
-        email: formData.get('email'),
-        password: formData.get('password')
-      };
+      
 
       try {
         const response = await fetch('/api/login', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
+          body: formData
         });
 
         if (response.ok) {

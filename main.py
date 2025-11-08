@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 import uvicorn
-from database import init_db, create_user
+from database import init_db, create_user, login_user
 
 app = FastAPI()
 
@@ -49,14 +49,14 @@ async def register_user(
 async def login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/api/login")
-async def login_user(
+@app.post("/api/login")
+async def api_login(
     email: str = Form(...),
     password: str = Form(...)
 ):
-    success, message = login_user(email, password)
+    success, user_data = login_user(email, password)
     
     if success:
-        return JSONResponse(status_code=200, content={"success": True, "message": message})
+        return JSONResponse(status_code=200, content={"success": True, "message": "Login successful", "user": user_data})
     else:
-        return JSONResponse(status_code=400, content={"success": False, "message": message})
+        return JSONResponse(status_code=401, content={"success": False, "message": "Invalid email or password"})
