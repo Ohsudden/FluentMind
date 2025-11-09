@@ -30,19 +30,19 @@
 			<nav class="settings-nav" aria-label="Profile navigation">
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-learn.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label">Learn</span>
+					<span class="settings-nav__label"><a href='/learn'>Learn</a></span>
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-vocabulary.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label">Vocabulary</span>
+					<span class="settings-nav__label"><a href=''>Vocabulary</a></span>
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-memorize.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label">Memorize</span>
+					<span class="settings-nav__label"><a href=''>Memorize</a></span>
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label">Previous lessons</span>
+					<span class="settings-nav__label"><a href=''>Previous lessons</a></span>
 				</button>
 				<button type="button" class="active">
 					<img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
@@ -61,7 +61,11 @@
 				<form>
 					<div class="row">
 						<label for="settings-name">Name</label>
-						<input id="settings-name" type="text" name="name" value="{{ user.name if user else '' }}" placeholder="Your Name" />
+						<input id="settings-name" type="text" name="name" value="{{ user.name if user else '' }}" placeholder="Your Name" disabled/>
+					</div>
+					<div class="row">
+						<label for="settings-surname">Surname</label>
+						<input id="settings-surname" type="text" name="surname" value="{{ user.surname if user else '' }}" placeholder="Your Surname" disabled/>
 					</div>
 					<div class="row">
 						<label for="settings-email">Email</label>
@@ -84,9 +88,6 @@
 							<option value="">Select native language</option>
 							<option>English</option>
 							<option>Ukrainian</option>
-							<option>Spanish</option>
-							<option>German</option>
-							<option>French</option>
 						</select>
 					</div>
 					<div class="row">
@@ -95,8 +96,6 @@
 							<option value="">Select interface language</option>
 							<option>English</option>
 							<option>Ukrainian</option>
-							<option>Polish</option>
-							<option>Spanish</option>
 						</select>
 					</div>
 				</form>

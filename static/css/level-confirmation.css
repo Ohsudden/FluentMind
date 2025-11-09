@@ -1,0 +1,109 @@
+body.level-confirmation-page{
+  background:#fff;
+  min-height:100%;
+  display:flex;
+  flex-direction:column;
+}
+
+.level-box{
+  width:966px;
+  margin:72px auto 120px;
+  margin-left: 250px;
+  background:#fff;
+  padding:56px 64px 68px;
+  border-radius:28px;
+  box-shadow:0 24px 64px rgba(30,22,56,.14);
+  border:1px solid rgba(32,24,62,.08);
+  
+}
+
+.level-box h1{
+  font-family:Montserrat,Arial,sans-serif;
+  font-size:36px;
+  margin:0 0 48px;
+  text-align:center;
+}
+
+.options{
+  display:flex;
+  flex-direction:column;
+  gap:32px;
+}
+
+.option{
+  display:flex;
+  align-items:center;
+  gap:28px;
+  text-decoration:none;
+  background:#fff;
+  padding:20px 26px 20px 26px;
+  border-radius:22px;
+  box-shadow:0 12px 36px rgba(30,22,56,.12);
+  border:1px solid rgba(110,82,210,.26);
+  transition:box-shadow .2s ease, transform .2s ease, background .2s ease, border-color .2s ease;
+  font-family:Inter,Arial,sans-serif;
+  color:#171722;
+}
+
+.option .icon{
+  width:56px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
+
+.option .icon img{
+  width:56px;
+  height:56px;
+}
+
+.option .title{
+  font-weight:600;
+  font-size:18px;
+}
+
+.option .arrow{
+  margin-left:auto;
+  font-size:28px;
+  font-weight:500;
+  line-height:1;
+  color:#7a55d0;
+  padding:0 6px;
+  transition:transform .2s ease;
+}
+
+.option:hover{
+  box-shadow:0 16px 42px rgba(30,22,56,.18);
+  transform:translateY(-3px);
+  border-color:#835df2;
+}
+
+.option:hover .arrow{
+  transform:translateX(4px);
+}
+
+@media (max-width:860px){
+  .level-box{
+    padding:40px 32px 56px;
+  }
+  .options{
+    gap:20px;
+  }
+  .option{
+    gap:20px;
+    padding:18px 20px 18px 20px;
+  }
+  .option .icon{width:48px;height:48px;}
+  .option .icon img{width:32px;height:32px;}
+  .option .title{font-size:17px;}
+  .option .arrow{font-size:26px;}
+}
+
+@media (max-width:560px){
+  .level-box h1{font-size:30px;}
+  .option .title{font-size:16px;}
+  .options{gap:18px;}
+  .option{padding:16px 18px;}
+}

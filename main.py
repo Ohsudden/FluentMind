@@ -20,6 +20,15 @@ templates = Jinja2Templates(directory="static")
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/learn", response_class=HTMLResponse)
+async def learn(request: Request):
+    level = request.session.get("proficiency_level")
+    if not level:
+        return templates.TemplateResponse("level_confirmation.html", {"request": request})
+    else:
+        return 'Good Job! Your level is already set.' # change this to a proper response later
+
+
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing(request: Request):
     return templates.TemplateResponse("pricing.html", {"request": request})

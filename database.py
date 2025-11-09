@@ -149,7 +149,7 @@ def get_user_by_id(user_id: int):
     connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
     cursor.execute(
-        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language FROM users WHERE user_id = ?",
+        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level FROM users WHERE user_id = ?",
         (user_id,)
     )
     row = cursor.fetchone()
@@ -164,6 +164,7 @@ def get_user_by_id(user_id: int):
         "password_hash": row[4],
         "native_language": row[5],
         "interface_language": row[6],
+        "proficiency_level": row[7]
     }
     
 def rechange_password(user_id: int, new_password: str):
