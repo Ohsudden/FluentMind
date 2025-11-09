@@ -60,10 +60,6 @@ body.settings-page{
     transition:background .18s ease, color .18s ease, transform .18s ease;
 }
 
-.settings-nav button span{
-    display:inline-block;
-}
-
 .settings-nav button:hover{
     background:#f4efff;
     color:#533c9b;
@@ -75,19 +71,11 @@ body.settings-page{
     color:#4d3a93;
 }
 
-.settings-nav svg{
-    width:22px;
-    height:22px;
-    stroke:#8a79bb;
-    stroke-width:1.9;
-}
 
-.settings-nav button.active svg{
-    stroke:#4d3a93;
-}
 
-.settings-nav button:hover svg{
-    stroke:#533c9b;
+
+.settings-nav__label{
+    display:inline-block;
 }
 
 .settings-card{
@@ -125,12 +113,10 @@ body.settings-page{
 }
 
 
-.settings-avatar svg{
+.settings-avatar img{
     width:86px;
     height:86px;
-    stroke:#fff;
-    stroke-width:2;
-    fill:none;
+    display:block;
     position:relative;
     z-index:1;
 }
@@ -237,7 +223,7 @@ footer{
         justify-content:center;
         padding:0;
     }
-    .settings-nav button span{display:none;}
+    .settings-nav__label{display:none;}
     .settings-nav button:hover{transform:translateY(-2px);}
     .settings-card{
         flex-direction:column;

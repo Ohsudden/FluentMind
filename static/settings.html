@@ -29,34 +29,31 @@
 		<aside class="settings-sidebar">
 			<nav class="settings-nav" aria-label="Profile navigation">
 				<button type="button">
-					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 20c1.6-4 4.4-6 8-6s6.4 2 8 6" stroke-linecap="round" /></svg>
-					<span>Learn</span>
+					<img src="{{ url_for('static', path='img/settings/nav-learn.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label">Learn</span>
 				</button>
 				<button type="button">
-					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16v9H7l-3 3V6Z" stroke-linejoin="round" /></svg>
-					<span>Vocabulary</span>
+					<img src="{{ url_for('static', path='img/settings/nav-vocabulary.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label">Vocabulary</span>
 				</button>
 				<button type="button">
-					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 10h16" /></svg>
-					<span>Memorize</span>
+					<img src="{{ url_for('static', path='img/settings/nav-memorize.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label">Memorize</span>
 				</button>
 				<button type="button">
-					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 16V8" stroke-linecap="round" /><path d="M12 16V4" stroke-linecap="round" /><path d="M18 16v-6" stroke-linecap="round" /></svg>
-					<span>Previous lessons</span>
+					<img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label">Previous lessons</span>
 				</button>
 				<button type="button" class="active">
-					<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" /><path d="m4.2 9.7 1.2-.2a1 1 0 0 0 .76-.53l.77-1.53a1 1 0 0 1 1.25-.47l1.46.58a1 1 0 0 0 .94-.15l1.24-.93a1 1 0 0 1 1.2 0l1.24.93a1 1 0 0 0 .94.15l1.46-.58a1 1 0 0 1 1.25.47l.77 1.53a1 1 0 0 0 .76.53l1.2.2a1 1 0 0 1 .82.98v1.64a1 1 0 0 1-.82.98l-1.2.2a1 1 0 0 0-.76.53l-.77 1.53a1 1 0 0 1-1.25.47l-1.46-.58a1 1 0 0 0-.94.15l-1.24.93a1 1 0 0 1-1.2 0l-1.24-.93a1 1 0 0 0-.94-.15l-1.46.58a1 1 0 0 1-1.25-.47l-.77-1.53a1 1 0 0 0-.76-.53l-1.2-.2a1 1 0 0 1-.82-.98V10.7a1 1 0 0 1 .82-.98Z" stroke-width="1.4" stroke-linecap="round" /></svg>
-					<span>Settings</span>
+					<img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label">Settings</span>
 				</button>
 			</nav>
 		</aside>
 
 		<section class="settings-card">
 			<div class="settings-avatar" aria-hidden="true">
-				<svg viewBox="0 0 64 64" aria-hidden="true">
-					<circle cx="32" cy="23" r="13" />
-					<path d="M12 54c3.8-10 10.2-15 20-15s16.2 5 20 15" stroke-linecap="round" />
-				</svg>
+				<img src="{{ url_for('static', path='img/settings/avatar-outline.svg') }}" alt="" width="100" height="100" />
 			</div>
 
 			<div class="settings-form">
