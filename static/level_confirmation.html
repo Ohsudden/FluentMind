@@ -62,7 +62,7 @@
           </div>
           <span class="arrow">›</span>
         </a>
-        <a class="option" href="#upload">
+        <a class="option" href="#upload" onclick="uploadCertificate()">
           <div class="icon"><img src="{{ url_for('static', path='img/level-upload-cert.png') }}" alt="" /></div>
           <div class="text">
             <span class="title">Upload certificate</span>
@@ -107,5 +107,54 @@
       </div>
     </div>
   </footer>
+  <script>
+    function uploadCertificate() {
+      if (document.getElementById('upload-certificate-modal')) return;
+      const modal = document.getElementsByClassName('level-box')[0];
+      modal.innerHTML = `
+        <div class="modal-content">
+          <button class="close-button" type="button" aria-label="Close" onclick="closeUploadModal()">×</button>
+          <h2>Upload Your English Certificate</h2>
+          <form id="upload-certificate-form">
+            <input type="file" id="certificate-file" name="file" accept=".pdf,.jpg,.jpeg,.png" required />
+            <button type="submit">Upload</button>
+          </form>
+          <div id="upload-status" class="status" aria-live="polite"></div>
+        </div>`;
+      document.body.insertAdjacentElement(modal);
+
+      Array.from(document.getElementsByClassName('options')).forEach(option => {
+        option.style.visibility = 'hidden';
+      });
+
+      const form = document.getElementById('upload-certificate-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('certificate-file');
+        if (!fileInput.files.length) return;
+        const data = new FormData();
+        data.append('file', fileInput.files[0]);
+        const status = document.getElementById('upload-status');
+        status.textContent = 'Uploading...';
+        try {
+          const resp = await fetch('/api/upload-certificate', { method: 'POST', body: data });
+          const json = await resp.json();
+          if (json.success) {
+            status.textContent = 'Uploaded successfully.';
+            setTimeout(() => closeUploadModal(), 1200);
+          } else {
+            status.textContent = json.message || 'Upload failed.';
+          }
+        } catch (err) {
+          status.textContent = 'Network error.';
+        }
+      });
+    }
+
+    function closeUploadModal(){
+      const m = document.getElementById('upload-certificate-modal');
+      if (m) m.remove();
+    }
+  </script>
 </body>
 </html>

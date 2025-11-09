@@ -15,7 +15,7 @@ def init_db():
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     proficiency_level TEXT CHECK(proficiency_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
-    certificate TEXT,
+    pp_image TEXT,
     native_language TEXT,
     interface_language TEXT,
     join_date TEXT DEFAULT CURRENT_TIMESTAMP
@@ -90,6 +90,19 @@ def init_db():
         FOREIGN KEY (module_id) REFERENCES modules(module_id),
         FOREIGN KEY (course_id) REFERENCES courses(course_id)
     );
+    CREATE TABLE IF NOT EXISTS certificate (
+    certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        certificate TEXT,
+        status BOOLEAN DEFAULT 0,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
+    CREATE TABLE IF NOT EXISTS vocabulary (
+        vocabulary_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        words TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
     ''')
     connection.commit()
     connection.close()
@@ -100,8 +113,8 @@ def create_user(name, surname, email, password):
     password_hash = PasswordHash.recommended().hash(password)
 
     cursor.execute(
-        "INSERT INTO users (name, surname, email, password_hash, email) VALUES (?, ?, ?, ?, ?)",
-        (name, surname, email, password_hash, email)
+        "INSERT INTO users (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
+        (name, surname, email, password_hash)
     )
     connection.commit()
     connection.close()
@@ -174,6 +187,16 @@ def rechange_password(user_id: int, new_password: str):
     cursor.execute(
         "UPDATE users SET password_hash = ? WHERE user_id = ?",
         (new_password_hash, user_id)
+    )
+    connection.commit()
+    connection.close()
+
+def upload_certificate(user_id: int, certificate: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "INSERT INTO certificate (user_id, certificate) VALUES (?, ?)" ,
+        (user_id, certificate)
     )
     connection.commit()
     connection.close()

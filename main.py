@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from database import init_db, create_user, login_user, get_user_by_id, rechange_password
+from database import init_db, create_user, login_user, get_user_by_id, rechange_password, upload_certificate
 from pwdlib import PasswordHash
+import os, time, secrets
 
 
 init_db()
@@ -130,3 +131,27 @@ async def change_password(request: Request,
     rechange_password(user_id, new_password)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Password changed successfully."})
+
+@app.post("/api/upload-certificate")
+async def cloud_certificate(request: Request, file: UploadFile = File(...)):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    allowed_ext = {"pdf", "jpg", "jpeg", "png"}
+    filename = file.filename or "certificate"
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in allowed_ext:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Unsupported file type."})
+
+    cert_dir = os.path.join("static", "certificates")
+    dest_path = os.path.join(cert_dir, filename)
+
+    contents = await file.read()
+    with open(dest_path, 'wb') as f:
+        f.write(contents)
+
+    rel_path = f"certificates/{filename}"
+    upload_certificate(user_id, rel_path)
+
+    return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "message": "Certificate uploaded successfully."})
