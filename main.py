@@ -47,6 +47,11 @@ async def settings_me(request: Request):
 
 @app.get("/settings/{userid}", response_class=HTMLResponse)
 async def settings(request: Request, userid: int):
+    session_user_id = request.session.get("user_id")
+    if not session_user_id:
+        return RedirectResponse(url="/login", status_code=302)
+    if session_user_id != userid:
+        return RedirectResponse(url=f"/settings/{session_user_id}", status_code=302)
     user = get_user_by_id(userid)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
