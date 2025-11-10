@@ -8,20 +8,20 @@ def init_db():
     cursor = connection.cursor()
 
     cursor.executescript('''
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS user (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     proficiency_level TEXT CHECK(proficiency_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
-    pp_image TEXT,
+    pp_image TEXT default 'img/settings/avatar-outline.svg',
     native_language TEXT,
     interface_language TEXT,
     join_date TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS courses (
+    CREATE TABLE IF NOT EXISTS course (
     course_id INTEGER PRIMARY KEY AUTOINCREMENT,
     level TEXT CHECK(level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     title TEXT,
@@ -30,25 +30,25 @@ def init_db():
     course_plan TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS user_courses (
+    CREATE TABLE IF NOT EXISTS user_course (
     user_id INTEGER,
     course_id INTEGER,
     start_date TEXT,
     progress_percent REAL DEFAULT 0,
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (course_id) REFERENCES courses(course_id)
+    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
     );
 
-    CREATE TABLE IF NOT EXISTS modules (
+    CREATE TABLE IF NOT EXISTS module (
     module_id INTEGER PRIMARY KEY AUTOINCREMENT,
     course_id INTEGER,
     title TEXT,
     week_number INTEGER,
     content_html TEXT,
-    FOREIGN KEY (course_id) REFERENCES courses(course_id)
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
     );
 
-    CREATE TABLE IF NOT EXISTS tests (
+    CREATE TABLE IF NOT EXISTS test (
     test_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     test_html TEXT,
@@ -58,19 +58,19 @@ def init_db():
     assessed_level TEXT CHECK(assessed_level IN ('A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
     assessed_by_model TEXT,
     phoenix_run_id TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    FOREIGN KEY (user_id) REFERENCES user(user_id)
     );
 
-    CREATE TABLE IF NOT EXISTS module_ratings (
+    CREATE TABLE IF NOT EXISTS module_rating (
     module_id INTEGER,
     user_id INTEGER,
     course_id INTEGER,
     rating BOOLEAN DEFAULT 0,
     review TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (module_id) REFERENCES modules(module_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id),
-    FOREIGN KEY (course_id) REFERENCES courses(course_id)
+    FOREIGN KEY (module_id) REFERENCES module(module_id),
+    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
     );
 
     CREATE TABLE IF NOT EXISTS progress_tracking (
@@ -86,22 +86,22 @@ def init_db():
         comments_from_model TEXT,
         phoenix_run_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(user_id),
-        FOREIGN KEY (module_id) REFERENCES modules(module_id),
-        FOREIGN KEY (course_id) REFERENCES courses(course_id)
+        FOREIGN KEY (user_id) REFERENCES user(user_id),
+        FOREIGN KEY (module_id) REFERENCES module(module_id),
+        FOREIGN KEY (course_id) REFERENCES course(course_id)
     );
     CREATE TABLE IF NOT EXISTS certificate (
     certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         certificate TEXT,
         status BOOLEAN DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
+        FOREIGN KEY (user_id) REFERENCES user(user_id)
     );
     CREATE TABLE IF NOT EXISTS vocabulary (
         vocabulary_id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         words TEXT,
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
+        FOREIGN KEY (user_id) REFERENCES user(user_id)
     );
     ''')
     connection.commit()
@@ -113,7 +113,7 @@ def create_user(name, surname, email, password):
     password_hash = PasswordHash.recommended().hash(password)
 
     cursor.execute(
-        "INSERT INTO users (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
+        "INSERT INTO user (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
         (name, surname, email, password_hash)
     )
     connection.commit()
@@ -126,7 +126,7 @@ def login_user(email, password):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT user_id, name, surname, email, password_hash FROM users WHERE email = ?",
+        "SELECT user_id, name, surname, email, password_hash FROM user WHERE email = ?",
         (email,)
     )
     row = cursor.fetchone()
@@ -150,7 +150,7 @@ def login_user(email, password):
 def get_user_id_by_email(email: str):
     connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
-    cursor.execute("SELECT user_id FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT user_id FROM user WHERE email = ?", (email,))
     row = cursor.fetchone()
     connection.close()
     if row:
@@ -162,7 +162,7 @@ def get_user_by_id(user_id: int):
     connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
     cursor.execute(
-        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level FROM users WHERE user_id = ?",
+        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level, pp_image FROM user WHERE user_id = ?",
         (user_id,)
     )
     row = cursor.fetchone()
@@ -177,7 +177,8 @@ def get_user_by_id(user_id: int):
         "password_hash": row[4],
         "native_language": row[5],
         "interface_language": row[6],
-        "proficiency_level": row[7]
+        "proficiency_level": row[7],
+        "pp_image": row[8]
     }
     
 def rechange_password(user_id: int, new_password: str):
@@ -185,7 +186,7 @@ def rechange_password(user_id: int, new_password: str):
     connection = sqlite3.connect('English_courses.db')
     cursor = connection.cursor()
     cursor.execute(
-        "UPDATE users SET password_hash = ? WHERE user_id = ?",
+        "UPDATE user SET password_hash = ? WHERE user_id = ?",
         (new_password_hash, user_id)
     )
     connection.commit()
@@ -197,6 +198,16 @@ def upload_certificate(user_id: int, certificate: str):
     cursor.execute(
         "INSERT INTO certificate (user_id, certificate) VALUES (?, ?)" ,
         (user_id, certificate)
+    )
+    connection.commit()
+    connection.close()
+
+def upload_image(user_id: int, image_data: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE user SET pp_image = ? WHERE user_id = ?",
+        (image_data, user_id)
     )
     connection.commit()
     connection.close()

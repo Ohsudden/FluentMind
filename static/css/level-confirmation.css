@@ -107,3 +107,247 @@ body.level-confirmation-page{
   .options{gap:18px;}
   .option{padding:16px 18px;}
 }
+
+.modal-content {
+  position: relative;
+  padding: 40px;
+  animation: fadeIn 0.3s ease;
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: 0 24px 64px rgba(30,22,56,.14);
+  border: 1px solid rgba(32,24,62,.08);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-content .close-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  font-size: 32px;
+  line-height: 1;
+  color: #7a55d0;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.modal-content .close-button:hover {
+  background: rgba(122, 85, 208, 0.1);
+  color: #835df2;
+  transform: rotate(90deg);
+}
+
+.modal-content h2 {
+  font-family: Montserrat, Arial, sans-serif;
+  font-size: 28px;
+  margin: 0 0 32px;
+  text-align: center;
+  color: #171722;
+}
+
+#upload-certificate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.file-input-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  background: #f5f3ff;
+  border: 2px dashed #7a55d0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 15px;
+  color: #171722;
+  font-weight: 500;
+}
+
+.file-input-label:hover {
+  background: #ede6ff;
+  border-color: #835df2;
+}
+
+.file-input-label input[type="file"] {
+  display: none;
+}
+
+.file-drop {
+  width: 100%;
+  max-width: 520px;
+  padding: 28px 20px;
+  border: 2px dashed #7a55d0;
+  border-radius: 16px;
+  background: #faf8ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  position: relative;
+}
+
+.file-drop:hover {
+  border-color: #835df2;
+  background: #f6f1ff;
+  box-shadow: 0 8px 24px rgba(122,85,208,.12);
+}
+
+.file-drop.is-dragover {
+  border-color: #6e52d2;
+  background: #efe9ff;
+}
+
+.file-drop input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-drop__icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.file-drop__text {
+  font-family: Inter, Arial, sans-serif;
+  font-size: 15px;
+  color: #2a2440;
+}
+
+.file-drop__hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #7c7299;
+}
+
+/* use styled label instead of native input button */
+#certificate-file { display: none; }
+
+#upload-certificate-form button[type="submit"] {
+  padding: 14px 48px;
+  background: linear-gradient(135deg, #7a55d0 0%, #835df2 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 8px 24px rgba(122, 85, 208, 0.25);
+}
+
+#upload-certificate-form button[type="submit"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(122, 85, 208, 0.35);
+}
+
+#upload-certificate-form button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+#upload-certificate-form button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#upload-status {
+  min-height: 24px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 15px;
+  text-align: center;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#upload-status:not(:empty) {
+  background: rgba(122, 85, 208, 0.1);
+  color: #7a55d0;
+  border: 1px solid rgba(122, 85, 208, 0.2);
+}
+
+#upload-status:not(:empty)[class*="success"] {
+  background: rgba(76, 175, 80, 0.1);
+  color: #2e7d32;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+#upload-status:not(:empty)[class*="error"],
+#upload-status:not(:empty)[class*="failed"] {
+  background: rgba(244, 67, 54, 0.1);
+  color: #c62828;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+@media (max-width: 860px) {
+  .modal-content {
+    padding: 32px 24px;
+  }
+  
+  .modal-content h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+  
+  .file-drop { max-width: 100%; }
+  
+  #upload-certificate-form button[type="submit"] {
+    padding: 12px 36px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 560px) {
+  .modal-content h2 {
+    font-size: 22px;
+  }
+  
+  #certificate-file::file-selector-button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  
+  #upload-status {
+    font-size: 14px;
+  }
+}

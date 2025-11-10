@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from database import init_db, create_user, login_user, get_user_by_id, rechange_password, upload_certificate
+from database import init_db, create_user, login_user, get_user_by_id, rechange_password, upload_certificate, upload_image
 from pwdlib import PasswordHash
 import os, time, secrets
 
@@ -143,15 +143,47 @@ async def cloud_certificate(request: Request, file: UploadFile = File(...)):
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if ext not in allowed_ext:
         return JSONResponse(status_code=400, content={"success": False, "message": "Unsupported file type."})
+    
+    cert_dir = os.path.join(os.getcwd(), "static", "certificates")
+    os.makedirs(cert_dir, exist_ok=True)
 
-    cert_dir = os.path.join("static", "certificates")
-    dest_path = os.path.join(cert_dir, filename)
+    safe_name = os.path.basename(filename)
+    dest_path = os.path.join(cert_dir, safe_name)
 
     contents = await file.read()
     with open(dest_path, 'wb') as f:
         f.write(contents)
 
-    rel_path = f"certificates/{filename}"
+    rel_path = f"certificates/{safe_name}"
     upload_certificate(user_id, rel_path)
 
-    return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "message": "Certificate uploaded successfully."})
+    static_url = f"/static/{rel_path}"
+    return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "url": static_url, "message": "Certificate uploaded successfully."})
+
+@app.post("/api/upload-image")
+async def upload_image_endpoint(request: Request, file: UploadFile = File(...)):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    allowed_ext = {"jpg", "jpeg", "png"}
+    filename = file.filename or "profile_image"
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in allowed_ext:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Unsupported file type."})
+    
+    image_dir = os.path.join(os.getcwd(), "static", "profile_images")
+    os.makedirs(image_dir, exist_ok=True)
+
+    safe_name = os.path.basename(filename)
+    dest_path = os.path.join(image_dir, safe_name)
+
+    contents = await file.read()
+    with open(dest_path, 'wb') as f:
+        f.write(contents)
+
+    rel_path = f"profile_images/{safe_name}"
+    upload_image(user_id, rel_path)
+
+    static_url = f"/static/profile_images/{safe_name}"
+    return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "url": static_url, "message": "Profile image uploaded successfully."})

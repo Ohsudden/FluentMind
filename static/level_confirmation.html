@@ -112,41 +112,59 @@
       if (document.getElementById('upload-certificate-modal')) return;
       const modal = document.getElementsByClassName('level-box')[0];
       modal.innerHTML = `
-        <div class="modal-content">
+        <div class="modal-content" id="upload-certificate-modal">
           <button class="close-button" type="button" aria-label="Close" onclick="closeUploadModal()">×</button>
           <h2>Upload Your English Certificate</h2>
           <form id="upload-certificate-form">
-            <input type="file" id="certificate-file" name="file" accept=".pdf,.jpg,.jpeg,.png" required />
+            <label for="certificate-file" class="file-input-label">
+              <input type="file" id="certificate-file" name="file" accept=".pdf,.jpg,.jpeg,.png" />
+              <span>Choose a file</span>
+            </label>
             <button type="submit">Upload</button>
           </form>
           <div id="upload-status" class="status" aria-live="polite"></div>
         </div>`;
-      document.body.insertAdjacentElement(modal);
-
+      
       Array.from(document.getElementsByClassName('options')).forEach(option => {
-        option.style.visibility = 'hidden';
+        option.style.display = 'none';
       });
 
       const form = document.getElementById('upload-certificate-form');
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('certificate-file');
-        if (!fileInput.files.length) return;
+        const status = document.getElementById('upload-status');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (!fileInput.files.length) {
+          status.textContent = 'Please choose a file first.';
+          return;
+        }
+        console.log('[DEBUG] File selected:', fileInput.files[0].name);
         const data = new FormData();
         data.append('file', fileInput.files[0]);
-        const status = document.getElementById('upload-status');
         status.textContent = 'Uploading...';
+        if (submitBtn) submitBtn.disabled = true;
         try {
           const resp = await fetch('/api/upload-certificate', { method: 'POST', body: data });
+          if (resp.status === 401) {
+            let json; try { json = await resp.json(); } catch {}
+            status.textContent = (json && json.message) ? json.message : 'Not authenticated. Please log in.';
+            return;
+          }
           const json = await resp.json();
           if (json.success) {
-            status.textContent = 'Uploaded successfully.';
-            setTimeout(() => closeUploadModal(), 1200);
+            status.textContent = 'Uploaded successfully. Redirecting to file...';
+            setTimeout(() => {
+              window.location.href =  `/learn?file=${json.path.split('/')[1]}`;
+            }, 1200);
           } else {
             status.textContent = json.message || 'Upload failed.';
           }
         } catch (err) {
-          status.textContent = 'Network error.';
+          console.error(err);
+          status.textContent = 'Network error: ' + err.message;
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
         }
       });
     }
@@ -154,6 +172,9 @@
     function closeUploadModal(){
       const m = document.getElementById('upload-certificate-modal');
       if (m) m.remove();
+      setTimeout(() => {
+              window.location.href =  `/learn`;
+            }, 10);
     }
   </script>
 </body>
