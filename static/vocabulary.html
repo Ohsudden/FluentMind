@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Vocabulary – FluentMind</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+</head>
+<body class="vocabulary-page">
+  <header>
+    <div class="wrap row">
+      <div class="brand">
+        <img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
+        <span>FluentMind</span>
+      </div>
+      <nav>
+        <a href="/">Main</a>
+        <a href="/registration">Learn now</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/contacts">Contacts</a>
+      </nav>
+      <div class="lang">en | ua</div>
+    </div>
+  </header>
+
+  <main class="wrap settings-wrapper">
+    <aside class="settings-sidebar">
+      <nav class="settings-nav" aria-label="Profile navigation">
+        <button type="button">
+          <img src="{{ url_for('static', path='img/settings/nav-learn.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label"><a href='/learn'>Learn</a></span>
+        </button>
+        <button type="button" class="active">
+          <img src="{{ url_for('static', path='img/settings/nav-vocabulary.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label">Vocabulary</span>
+        </button>
+        <button type="button">
+          <img src="{{ url_for('static', path='img/settings/nav-memorize.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label"><a href=''>Memorize</a></span>
+        </button>
+        <button type="button">
+          <img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label"><a href=''>Previous lessons</a></span>
+        </button>
+        <button type="button">
+          <img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label"><a href='/settings'>Settings</a></span>
+        </button>
+      </nav>
+    </aside>
+
+    <section class="vocabulary-card">
+      <div class="vocabulary-intro">
+        <h1>Your personal vocabulary</h1>
+        <p>Save every new word you encounter. Add as many entries as you need!</p>
+      </div>
+
+      <form id="vocabulary-form" class="vocabulary-form" autocomplete="off">
+        <div class="form-row">
+          <label for="vocabulary-word">Word</label>
+          <input id="vocabulary-word" name="word" type="text" placeholder="e.g., serendipity" required />
+        </div>
+        <div class="form-row">
+          <label for="vocabulary-definition">Definition</label>
+          <textarea id="vocabulary-definition" name="definition" rows="3" placeholder="Describe what the word means" required></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit">Save word</button>
+          <span id="vocabulary-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <div class="vocabulary-list">
+        <div class="list-header">
+          <h2>Saved words</h2>
+          <div class="list-count" id="vocabulary-count">0 words</div>
+        </div>
+        <div id="vocabulary-empty" class="empty-state">
+          <p>No words yet. Add your first entry above!</p>
+        </div>
+        <ul id="vocabulary-items"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
+        </div>
+        <ul class="contact-list">
+          <li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+          <li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+          <li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+        </ul>
+        <div>
+          <div class="socials-foot">
+            <img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+            <img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+            <img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
+          </div>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>©2025 FluentMind All rights reserved.</span>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of use</a>
+        <a href="#">Sitemap</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const form = document.getElementById('vocabulary-form');
+    const wordInput = document.getElementById('vocabulary-word');
+    const definitionInput = document.getElementById('vocabulary-definition');
+    const statusEl = document.getElementById('vocabulary-status');
+    const listEl = document.getElementById('vocabulary-items');
+    const emptyEl = document.getElementById('vocabulary-empty');
+    const countEl = document.getElementById('vocabulary-count');
+
+    let cachedWords = {};
+
+    const setStatus = (message, isError = false) => {
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.className = isError ? 'error' : '';
+    };
+
+    const renderList = () => {
+      const entries = Object.entries(cachedWords);
+      countEl.textContent = entries.length === 1 ? '1 word' : `${entries.length} words`;
+
+      if (!entries.length) {
+        emptyEl.style.display = 'block';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      entries.sort((a, b) => a[0].localeCompare(b[0]));
+      listEl.innerHTML = entries
+        .map(
+          ([word, definition]) => `
+            <li>
+              <div class="word-block">
+                <div>
+                  <h3>${word}</h3>
+                  <p>${definition}</p>
+                </div>
+                <button type="button" data-word="${word}">Delete</button>
+              </div>
+            </li>
+          `
+        )
+        .join('');
+
+      listEl.querySelectorAll('button[data-word]').forEach((btn) => {
+        btn.addEventListener('click', () => deleteWord(btn.dataset.word));
+      });
+    };
+
+    const fetchVocabulary = async () => {
+      setStatus('Loading...');
+      try {
+        const resp = await fetch('/api/vocabulary');
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          throw new Error(data.message || 'Failed to load vocabulary.');
+        }
+        cachedWords = data.words || {};
+        renderList();
+        setStatus('');
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    };
+
+    const saveWord = async (word, definition) => {
+      setStatus('Saving...');
+      try {
+        const resp = await fetch('/api/vocabulary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word, definition })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          throw new Error(data.message || 'Unable to save word.');
+        }
+        cachedWords = data.words || {};
+        renderList();
+        setStatus('Word saved.');
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    };
+
+    const deleteWord = async (word) => {
+      if (!confirm(`Delete the word "${word}"?`)) return;
+      setStatus('Deleting...');
+      try {
+        const resp = await fetch('/api/vocabulary', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word })
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          throw new Error(data.message || 'Unable to delete word.');
+        }
+        cachedWords = data.words || {};
+        renderList();
+        setStatus('Word deleted.');
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    };
+
+    if (form) {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const word = wordInput.value.trim();
+        const definition = definitionInput.value.trim();
+        if (!word || !definition) {
+          setStatus('Both fields are required.', true);
+          return;
+        }
+        await saveWord(word, definition);
+        wordInput.value = '';
+        definitionInput.value = '';
+      });
+    }
+
+    fetchVocabulary();
+  </script>
+</body>
+</html>

@@ -34,7 +34,7 @@
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-vocabulary.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label"><a href=''>Vocabulary</a></span>
+					<span class="settings-nav__label"><a href='/vocabulary'>Vocabulary</a></span>
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-memorize.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
@@ -75,6 +75,10 @@
 						</div>
 					</div>
 					<div class="row">
+						<label for="settings-proficiency">Proficiency level</label>
+						<input id="settings-proficiency" type="text" name="proficiency" value="{{ user.proficiency if user else '' }}" placeholder="Your Proficiency Level" disabled/>
+					</div>
+					<div class="row">
 						<label for="settings-password">Password</label>
                         <div class="row-inline">
                             <input id="settings-password" type="password" name="password" placeholder="Password" disabled/>
@@ -84,18 +88,18 @@
 					</div>
 					<div class="row">
 						<label for="settings-native">Native language</label>
-						<select id="settings-native" name="native-language">
-							<option value="">Select native language</option>
-							<option>English</option>
-							<option>Ukrainian</option>
+						<select id="settings-native" name="native-language" onchange="updateNativeLanguage(event)">
+							<option value="" disabled {{ 'selected' if not user or not user.native_language else '' }}>Select native language</option>
+							<option value="English" {{ 'selected' if user and user.native_language == 'English' else '' }}>English</option>
+							<option value="Ukrainian" {{ 'selected' if user and user.native_language == 'Ukrainian' else '' }}>Ukrainian</option>
 						</select>
 					</div>
 					<div class="row">
 						<label for="settings-interface">Interface language</label>
-						<select id="settings-interface" name="interface-language">
-							<option value="">Select interface language</option>
-							<option>English</option>
-							<option>Ukrainian</option>
+						<select id="settings-interface" name="interface-language" onchange="updateInterfaceLanguage(event)">
+							<option value="" disabled {{ 'selected' if not user or not user.interface_language else '' }}>Select interface language</option>
+							<option value="English" {{ 'selected' if user and user.interface_language == 'English' else '' }}>English</option>
+							<option value="Ukrainian" {{ 'selected' if user and user.interface_language == 'Ukrainian' else '' }}>Ukrainian</option>
 						</select>
 					</div>
 				</form>
@@ -278,6 +282,49 @@ async function upload_image(event) {
 		}
 	};
 	input.click();
+}
+async function updateNativeLanguage(event) {
+	const select = document.getElementById('settings-native');
+	const nativeLanguage = select.value;
+
+	try {
+		const response = await fetch('/api/update-native-language', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ native_language: nativeLanguage })
+		});
+
+		if (response.ok) {
+			alert('Native language updated successfully.');
+		} else {
+			alert('Failed to update native language. Please try again.');
+		}
+	} catch (error) {
+		console.error('Error updating native language:', error);
+		alert('An error occurred. Please try again later.');
+	}
+}
+
+async function updateInterfaceLanguage(event) {
+	const select = document.getElementById('settings-interface');
+	const interfaceLanguage = select.value;
+
+	try {
+		const response = await fetch('/api/update-interface-language', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ interface_language: interfaceLanguage })
+		});
+
+		if (response.ok) {
+			alert('Interface language updated successfully.');
+		} else {
+			alert('Failed to update interface language. Please try again.');
+		}
+	} catch (error) {
+		console.error('Error updating interface language:', error);
+		alert('An error occurred. Please try again later.');
+	}
 }
 
   </script>

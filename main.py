@@ -3,7 +3,19 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from database import init_db, create_user, login_user, get_user_by_id, rechange_password, upload_certificate, upload_image
+from database import (
+    init_db,
+    create_user,
+    login_user,
+    get_user_by_id,
+    rechange_password,
+    upload_certificate,
+    upload_image,
+    get_vocabulary_by_user,
+    save_vocabulary_by_user,
+    update_native_language,
+    update_interface_language
+)
 from pwdlib import PasswordHash
 import os, time, secrets
 
@@ -57,15 +69,28 @@ async def settings_me(request: Request):
 
 @app.get("/settings/{userid}", response_class=HTMLResponse)
 async def settings(request: Request, userid: int):
-    session_user_id = request.session.get("user_id")
-    if not session_user_id:
+    user_id = request.session.get("user_id")
+    if not user_id:
         return RedirectResponse(url="/login", status_code=302)
-    if session_user_id != userid:
-        return RedirectResponse(url=f"/settings/{session_user_id}", status_code=302)
+    if user_id != userid:
+        return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
     user = get_user_by_id(userid)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return templates.TemplateResponse("settings.html", {"request": request, "userid": userid, "user": user})
+
+
+@app.get("/vocabulary", response_class=HTMLResponse)
+async def vocabulary_page(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=302)
+
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return templates.TemplateResponse("vocabulary.html", {"request": request, "user": user})
 
 @app.post("/api/register")
 async def register_user(
@@ -110,6 +135,69 @@ async def session_info(request: Request):
         "user_id": request.session.get("user_id"),
         "user_email": request.session.get("user_email"),
     }
+
+
+def _ensure_authenticated(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    return user_id
+
+
+@app.get("/api/vocabulary")
+async def api_get_vocabulary(request: Request):
+    try:
+        user_id = _ensure_authenticated(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
+
+    words = get_vocabulary_by_user(user_id)
+    return JSONResponse(status_code=200, content={"success": True, "words": words})
+
+
+@app.post("/api/vocabulary")
+async def api_add_word(request: Request):
+    try:
+        user_id = _ensure_authenticated(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
+
+    payload = await request.json()
+    word = payload.get("word", "").strip()
+    definition = payload.get("definition", "").strip()
+
+    if not word or not definition:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Word and definition are required."})
+
+    words = get_vocabulary_by_user(user_id)
+    words[word] = definition
+    save_vocabulary_by_user(user_id, words)
+
+    return JSONResponse(status_code=200, content={"success": True, "words": words, "message": "Word saved."})
+
+
+@app.delete("/api/vocabulary")
+async def api_delete_word(request: Request):
+    try:
+        user_id = _ensure_authenticated(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
+
+    payload = await request.json()
+    word = payload.get("word", "").strip()
+
+    if not word:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Word is required."})
+
+    words = get_vocabulary_by_user(user_id)
+
+    if word not in words:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Word not found."})
+
+    del words[word]
+    save_vocabulary_by_user(user_id, words)
+
+    return JSONResponse(status_code=200, content={"success": True, "words": words, "message": "Word deleted."})
 
 @app.post("/api/change-password")
 async def change_password(request: Request,
@@ -187,3 +275,61 @@ async def upload_image_endpoint(request: Request, file: UploadFile = File(...)):
 
     static_url = f"/static/profile_images/{safe_name}"
     return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "url": static_url, "message": "Profile image uploaded successfully."})
+
+async def _extract_payload_value(request: Request, key: str):
+    content_type = request.headers.get("content-type", "")
+    value = None
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        value = data.get(key)
+        if value is None and "-" in key:
+            value = data.get(key.replace("-", "_"))
+    else:
+        form = await request.form()
+        value = form.get(key)
+        if value is None and "-" in key:
+            value = form.get(key.replace("-", "_"))
+
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+@app.post("/api/update-native-language")
+async def native_language_changes(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    native_language = await _extract_payload_value(request, "native_language")
+    if not native_language:
+        native_language = await _extract_payload_value(request, "native-language")
+
+    if not native_language:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Native language is required."})
+
+    update_native_language(user_id, native_language)
+
+    return JSONResponse(status_code=200, content={"success": True, "message": "Native language updated successfully."})
+
+
+@app.post("/api/update-interface-language")
+async def interface_language_changes(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    interface_language = await _extract_payload_value(request, "interface_language")
+    if not interface_language:
+        interface_language = await _extract_payload_value(request, "interface-language")
+
+    if not interface_language:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Interface language is required."})
+
+    update_interface_language(user_id, interface_language)
+
+    return JSONResponse(status_code=200, content={"success": True, "message": "Interface language updated successfully."})

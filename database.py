@@ -1,5 +1,6 @@
 import sqlite3
 import hashlib
+import json
 from datetime import datetime
 from pwdlib import PasswordHash
 
@@ -208,6 +209,76 @@ def upload_image(user_id: int, image_data: str):
     cursor.execute(
         "UPDATE user SET pp_image = ? WHERE user_id = ?",
         (image_data, user_id)
+    )
+    connection.commit()
+    connection.close()
+
+
+def get_vocabulary_by_user(user_id: int):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT words FROM vocabulary WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    connection.close()
+
+    if not row or row[0] is None:
+        return {}
+
+    try:
+        data = json.loads(row[0])
+    except json.JSONDecodeError:
+        return {}
+
+    if isinstance(data, dict):
+        return data
+
+    return {}
+
+
+def save_vocabulary_by_user(user_id: int, words: dict):
+    serialized = json.dumps(words, ensure_ascii=False)
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "SELECT vocabulary_id FROM vocabulary WHERE user_id = ?",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+
+    if row:
+        cursor.execute(
+            "UPDATE vocabulary SET words = ? WHERE vocabulary_id = ?",
+            (serialized, row[0])
+        )
+    else:
+        cursor.execute(
+            "INSERT INTO vocabulary (user_id, words) VALUES (?, ?)",
+            (user_id, serialized)
+        )
+
+    connection.commit()
+    connection.close()
+
+def update_native_language(user_id: int, native_language: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE user SET native_language = ? WHERE user_id = ?",
+        (native_language, user_id)
+    )
+    connection.commit()
+    connection.close()
+
+def update_interface_language(user_id: int, interface_language: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE user SET interface_language = ? WHERE user_id = ?",
+        (interface_language, user_id)
     )
     connection.commit()
     connection.close()
