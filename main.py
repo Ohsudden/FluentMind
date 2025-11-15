@@ -14,7 +14,8 @@ from database import (
     get_vocabulary_by_user,
     save_vocabulary_by_user,
     update_native_language,
-    update_interface_language
+    update_interface_language,
+    update_email
 )
 from pwdlib import PasswordHash
 import os, time, secrets
@@ -333,3 +334,18 @@ async def interface_language_changes(request: Request):
     update_interface_language(user_id, interface_language)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Interface language updated successfully."})
+
+@app.post("/api/update-email")
+async def email_changes(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    email = await _extract_payload_value(request, "email")
+
+    if not email:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Email is required."})
+
+    update_email(user_id, email)
+
+    return JSONResponse(status_code=200, content={"success": True, "message": "Email updated successfully."})

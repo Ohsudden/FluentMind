@@ -282,3 +282,13 @@ def update_interface_language(user_id: int, interface_language: str):
     )
     connection.commit()
     connection.close()
+
+def update_email(user_id: int, email: str):
+    connection = sqlite3.connect('English_courses.db')
+    cursor = connection.cursor()
+    cursor.execute(
+        "UPDATE user SET email = ? WHERE user_id = ?",
+        (email, user_id)
+    )
+    connection.commit()
+    connection.close()

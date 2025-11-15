@@ -71,7 +71,7 @@
 						<label for="settings-email">Email</label>
 						<div class="row-inline">
 							<input id="settings-email" type="email" name="email" value="{{ user.email if user else '' }}" placeholder="Your Email" disabled/>
-							<button type="button" class="change-btn">Change</button>
+							<button type="button" class="change-btn" onclick="changeEmail(event)">Change</button>
 						</div>
 					</div>
 					<div class="row">
@@ -156,9 +156,50 @@
         alert('An error occurred. Please try again later.');
       }
     }
-    async function changeEmail(event) {
+	async function changeEmail(event) {
+	  const button = event.currentTarget;
       const emailInput = document.getElementById('settings-email');
-      emailInput.disabled = false;
+
+	  if (!button.dataset.editing) {
+		button.dataset.editing = 'true';
+		button.textContent = 'Save';
+		emailInput.disabled = false;
+		emailInput.focus();
+		emailInput.select();
+		return;
+	  }
+
+	  const newEmail = emailInput.value.trim();
+
+	  if (!newEmail) {
+		alert('Please enter a valid email address.');
+		return;
+	  }
+
+	  const formData = new FormData();
+	  formData.append('email', newEmail);
+
+	  try {
+		const response = await fetch('/api/update-email', {
+		  method: 'POST',
+		  body: formData
+		});
+
+		const result = await response.json();
+
+		if (!response.ok) {
+		  alert(result?.message || 'Failed to change email.');
+		  return;
+		}
+
+		alert('Email changed successfully.');
+		emailInput.disabled = true;
+		button.textContent = 'Change';
+		delete button.dataset.editing;
+	  } catch (error) {
+		console.error('Error changing email:', error);
+		alert('An error occurred. Please try again later.');
+	  }
     }
 
 	async function changePassword(event) {
