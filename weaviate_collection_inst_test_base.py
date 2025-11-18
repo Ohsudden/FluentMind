@@ -1,27 +1,70 @@
+from pathlib import Path
+
+import pandas as pd
 import weaviate
-from weaviate.classes.config import Configure
+from weaviate.classes.config import Configure, DataType, Property
 
-# Step 1.1: Connect to your local Weaviate instance
+
+DATASET_PATH = Path("datasets") / "voc_combined.csv"
+VOCAB_COLLECTION = "Vocabulary"
+SECONDARY_COLLECTION = "vocabulary"
+VECTOR_SOURCE_PROPERTIES = [
+    "headword",
+    "pos",
+    "CEFR",
+    "CoreInventory 1",
+    "CoreInventory 2",
+    "Threshold",
+    "notes",
+]
+
 with weaviate.connect_to_local() as client:
-    # Step 1.2: Create a collection
-    movies = client.collections.create(
-        name="Movie",
-        vector_config=Configure.Vectors.text2vec_ollama(  # Configure the Ollama embedding integration
-            api_endpoint="http://ollama:11434",  # If using Docker you might need: http://host.docker.internal:11434
-            model="nomic-embed-text",  # The model to use
-        ),
-    )
+    if client.collections.exists(VOCAB_COLLECTION):
+        vocabulary = client.collections.get(VOCAB_COLLECTION)
+    else:
+        vocabulary = client.collections.create(
+            name=VOCAB_COLLECTION,
+            vector_config=Configure.Vectors.text2vec_ollama(
+                api_endpoint="http://host.docker.internal:11434",
+                model="nomic-embed-text",
+            ),
+        )
 
-    # Step 1.3: Import three objects
-    data_objects = [
-        {"title": "The Matrix", "description": "A computer hacker learns about the true nature of reality and his role in the war against its controllers.", "genre": "Science Fiction"},
-        {"title": "Spirited Away", "description": "A young girl becomes trapped in a mysterious world of spirits and must find a way to save her parents and return home.", "genre": "Animation"},
-        {"title": "The Lord of the Rings: The Fellowship of the Ring", "description": "A meek Hobbit and his companions set out on a perilous journey to destroy a powerful ring and save Middle-earth.", "genre": "Fantasy"},
+    df = pd.read_csv(DATASET_PATH)
+    data_objects = df.to_dict(orient="records")
+
+    vectorizer_config = [
+        Configure.NamedVectors.text2vec_transformers(
+            name="vector",
+            source_properties=VECTOR_SOURCE_PROPERTIES,
+            vectorize_collection_name=False,
+            inference_url="http://127.0.0.1:5000",
+        )
     ]
 
-    movies = client.collections.use("Movie")
-    with movies.batch.fixed_size(batch_size=200) as batch:
+    if client.collections.exists(SECONDARY_COLLECTION):
+        collection = client.collections.get(SECONDARY_COLLECTION)
+    else:
+        collection = client.collections.create(
+            name=SECONDARY_COLLECTION,
+            vectorizer_config=vectorizer_config,
+            reranker_config=Configure.Reranker.transformers(),
+            properties=[
+                Property(name="headword", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="pos", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="CEFR", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="CoreInventory 1", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="CoreInventory 2", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="Threshold", vectorize_property_name=True, data_type=DataType.TEXT),
+                Property(name="notes", vectorize_property_name=True, data_type=DataType.TEXT),
+            ],
+        )
+
+    vocabulary = client.collections.use(VOCAB_COLLECTION)
+    with vocabulary.batch.fixed_size(batch_size=200) as batch:
         for obj in data_objects:
             batch.add_object(properties=obj)
 
-    print(f"Imported & vectorized {len(movies)} objects into the Movie collection")
+    print(
+        f"Imported & vectorized {len(data_objects)} objects into the {VOCAB_COLLECTION} collection"
+    )
