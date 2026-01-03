@@ -1,0 +1,278 @@
+import phoenix as px
+from phoenix.otel import register
+from opentelemetry.trace import Status, StatusCode
+import os
+import requests
+import json
+import weaviate
+from langchain_openai import ChatOpenAI
+from langchain_together import ChatTogether
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
+
+
+class PhoenixTracking:
+    def __init__(self, app_name: str):
+        self.app_name = app_name
+        self.tracer = register(app_name)
+        self.session = px.launch_app()
+        self.phoenix_project_name = "RAG_English_Learning"
+
+
+    def generate_with_single_input(self, prompt: str, role: str = 'user', top_p: float = None, temperature: float = None,
+                               max_tokens: int = 500, model: str = "meta-llama/Llama-3.2-3B-Instruct-Turbo",
+                               api_key=None, use_openai: bool = False, **kwargs):
+        """Generate text with comprehensive Phoenix tracking."""
+        with self.tracer.start_as_current_span("llm_generation", openinference_span_kind='llm') as span:
+            try:
+
+                span.add_event("Starting LLM generation")
+                span.set_attribute("llm.model_name", model)
+                span.set_attribute("llm.input_messages.0.role", role)
+                span.set_attribute("llm.input_messages.0.content", prompt)
+                span.set_attribute("llm.temperature", temperature if temperature else 1.0)
+                span.set_attribute("llm.top_p", top_p if top_p else 1.0)
+                span.set_attribute("llm.max_tokens", max_tokens)
+                span.set_attribute("llm.provider", "openai" if use_openai else "together")
+                
+                if top_p is None:
+                    top_p = 1.0
+                if temperature is None:
+                    temperature = 1.0
+                
+                if use_openai:
+                    llm = ChatOpenAI(
+                        model=model if "gpt" in model else "gpt-3.5-turbo",
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        model_kwargs={"top_p": top_p, **kwargs}
+                    )
+                else:
+                    api_key = api_key or os.environ.get('API_KEY')
+                    llm = ChatTogether(
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        together_api_key=api_key,
+                        model_kwargs={"top_p": top_p, **kwargs}
+                    )
+                
+                if role.lower() == 'system':
+                    messages = [SystemMessage(content=prompt)]
+                else:
+                    messages = [HumanMessage(content=prompt)]
+                
+                span.add_event("Invoking LLM")
+                response = llm.invoke(messages)
+                
+                total_tokens = 0
+                prompt_tokens = 0
+                completion_tokens = 0
+                
+                if hasattr(response, 'response_metadata'):
+                    usage = response.response_metadata.get('token_usage', {})
+                    total_tokens = usage.get('total_tokens', 0)
+                    prompt_tokens = usage.get('prompt_tokens', 0)
+                    completion_tokens = usage.get('completion_tokens', 0)
+                
+                span.set_attribute("llm.output_messages.0.role", "assistant")
+                span.set_attribute("llm.output_messages.0.content", response.content)
+                span.set_attribute("llm.token_count.total", total_tokens)
+                span.set_attribute("llm.token_count.prompt", prompt_tokens)
+                span.set_attribute("llm.token_count.completion", completion_tokens)
+                
+                output_dict = {
+                    'role': 'assistant',
+                    'content': response.content,
+                    'total_tokens': total_tokens
+                }
+                
+                span.add_event("LLM generation completed")
+                span.set_status(Status(StatusCode.OK))
+                return output_dict
+                
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                span.add_event("LLM generation failed")
+                raise Exception(f"Failed to generate response with LangChain. Error: {e}")
+    
+    def generate_params_dict(
+    prompt: str,
+    temperature: float = 1.0,
+    role: str = 'user',
+    top_p: float = 1.0,
+    max_tokens: int = 500,
+    model: str = "meta-llama/Llama-3.2-3B-Instruct-Turbo"
+    ) -> dict:
+        
+        kwargs = {
+            "prompt": prompt,
+            "role": role,
+            "temperature": temperature,
+            "top_p": top_p,
+            "max_tokens": max_tokens,
+            "model": model
+        }
+        return kwargs
+    
+    def hybrid_retrieve(self, query: str, 
+                        collection: "weaviate.collections.collection.sync.Collection" , 
+                        alpha: float = 0.5,
+                        top_k: int = 5
+                    ) -> list:
+        """Hybrid retrieval with Phoenix tracking."""
+        with self.tracer.start_as_current_span("hybrid_retrieval", openinference_span_kind='retriever') as span:
+            try:
+                span.add_event("Starting hybrid retrieval")
+                span.set_attribute("retrieval.query", query)
+                span.set_attribute("retrieval.top_k", top_k)
+                span.set_attribute("retrieval.alpha", alpha)
+                span.set_attribute("retrieval.collection", collection.name if hasattr(collection, 'name') else "unknown")
+                
+                response = collection.query.hybrid(query=query, limit=top_k, alpha=alpha)
+                response_objects = [x.properties for x in response.objects]
+                
+                span.set_attribute("retrieval.documents.count", len(response_objects))
+                for i, doc in enumerate(response_objects[:3]): 
+                    span.set_attribute(f"retrieval.documents.{i}.id", i)
+                    span.set_attribute(f"retrieval.documents.{i}.content", str(doc)[:200]) 
+                    
+                span.add_event(f"Retrieved {len(response_objects)} documents")
+                span.set_status(Status(StatusCode.OK))
+                return response_objects
+                
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                raise 
+    
+    def augmented_prompt(self, query: str, 
+                              collection: "weaviate.collections.collection.sync.Collection",
+                            top_k: int, 
+                            retrieve_function: callable,
+                            alpha: float = 0.5,
+                            use_rag: bool = True,
+                            prompt_context: str = "") -> str:
+        """Create augmented prompt with RAG context and Phoenix tracking."""
+        with self.tracer.start_as_current_span("augmented_prompt_creation") as span:
+            try:
+                span.add_event("Creating augmented prompt")
+                span.set_attribute("rag.use_rag", use_rag)
+                span.set_attribute("rag.query", query)
+                span.set_attribute("rag.top_k", top_k)
+                span.set_attribute("rag.prompt_context", prompt_context)
+
+                if not use_rag:
+                    span.add_event("RAG disabled, returning original query")
+                    span.set_status(Status(StatusCode.OK))
+                    return query
+                
+                span.add_event("Retrieving documents for augmentation")
+                top_k_documents = retrieve_function(query=query, top_k=top_k, collection=collection)
+                
+                formatted_data = ""
+                
+                for document in top_k_documents:
+                    document_layout = (
+                        f"Title: {document['title']}, Chunk: {document['chunk']}, "
+                        f"Published at: {document['pubDate']}\nURL: {document['link']}"
+                    )
+                    formatted_data += document_layout + "\n"
+                
+                retrieve_data_formatted = formatted_data  
+                prompt = (
+                    f"Prompt Context:{prompt_context}\n"
+                    f"Query: {query}\n"
+                    f"2024 News: {retrieve_data_formatted}"
+                )
+                
+                span.set_attribute("rag.augmented_prompt_length", len(prompt))
+                span.set_attribute("rag.documents_used", len(top_k_documents))
+                span.add_event("Augmented prompt created successfully")
+                span.set_status(Status(StatusCode.OK))
+                return prompt
+                
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                raise
+    
+    def generate_text(self, prompt: str):
+        """Generate text with comprehensive tracking."""
+        with self.tracer.start_as_current_span("generate_text", openinference_span_kind='chain') as span:
+            try:
+                span.add_event("Starting text generation")
+                span.set_attribute("input.prompt", prompt)
+                span.set_attribute("input.prompt_length", len(prompt))
+                
+                response = self.generate_with_single_input(
+                    **self.generate_params_dict(prompt=prompt, role='user')
+                )
+                
+                span.set_attribute("output.content", response['content'])
+                span.set_attribute("output.content_length", len(response['content']))
+                span.set_attribute("output.total_tokens", response.get('total_tokens', 0))
+                span.add_event("Text generation completed")
+                span.set_status(Status(StatusCode.OK))
+                return response['content']
+            
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                raise
+
+    def generate_english_exam(self, temperature, top_p, max_tokens, model):
+        """Generate English exam with comprehensive RAG workflow tracking."""
+        with self.tracer.start_as_current_span("generate_english_exam", openinference_span_kind='chain') as span:
+            try:
+                span.add_event("Starting English exam generation")
+                span.set_attribute("exam.temperature", temperature)
+                span.set_attribute("exam.top_p", top_p)
+                span.set_attribute("exam.max_tokens", max_tokens)
+                span.set_attribute("exam.model", model)
+                span.set_attribute("exam.type", "multiple_choice")
+                span.set_attribute("exam.question_count", 5)
+                
+                prompt_context = (
+                    "You are an expert English exam creator. Generate a 5-question multiple-choice "
+                    "English exam suitable for intermediate learners. Each question should have 4 options "
+                    "labeled A, B, C, and D, with one correct answer. Provide the correct answers at the end."
+                )
+                
+                span.add_event("Connecting to Weaviate")
+                client = weaviate.Client("http://localhost:8080")
+                
+                span.add_event("Creating augmented prompt with grammar context")
+                augmented_prompt = self.augmented_prompt(
+                    query=prompt_context, use_rag=True,
+                    collection=client.collections.get("CefrGrammarProfile"),
+                    top_k=5, retrieve_function=self.hybrid_retrieve)
+                
+                span.set_attribute("exam.augmented_prompt_length", len(augmented_prompt))
+                span.add_event("Generating exam with LLM")
+                
+                response = self.generate_with_single_input(
+                    **self.generate_params_dict(prompt=augmented_prompt, role='user', 
+                                               temperature=temperature, top_p=top_p, 
+                                               max_tokens=max_tokens, model=model)
+                )
+                
+                span.set_attribute("exam.output_length", len(response['content']))
+                span.set_attribute("exam.total_tokens", response.get('total_tokens', 0))
+                span.add_event("Exam generation completed successfully")
+                span.set_status(Status(StatusCode.OK))
+                return response['content']
+            
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                span.add_event("Exam generation failed")
+                raise
+
+    
