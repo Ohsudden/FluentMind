@@ -1,3 +1,5 @@
+import getpass
+from langchain_google_genai import ChatGoogleGenerativeAI
 import phoenix as px
 from phoenix.otel import register
 from opentelemetry.trace import Status, StatusCode
@@ -48,14 +50,17 @@ class PhoenixTracking:
                         model_kwargs={"top_p": top_p, **kwargs}
                     )
                 else:
-                    api_key = api_key or os.environ.get('API_KEY')
-                    llm = ChatTogether(
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        together_api_key=api_key,
-                        model_kwargs={"top_p": top_p, **kwargs}
+        
+                    if "GOOGLE_API_KEY" not in os.environ:
+                        os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
+                        model = ChatGoogleGenerativeAI(
+                            model="gemini-3-pro-preview",
+                            temperature=1.0,  
+                            max_tokens=None,
+                            timeout=None,
+                            max_retries=2,
                     )
+
                 
                 if role.lower() == 'system':
                     messages = [SystemMessage(content=prompt)]
