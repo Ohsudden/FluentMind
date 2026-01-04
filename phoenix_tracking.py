@@ -7,24 +7,27 @@ import os
 import requests
 import json
 import weaviate
-from langchain_openai import ChatOpenAI
-from langchain_together import ChatTogether
+# from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
 
 class PhoenixTracking:
-    def __init__(self, app_name: str):
+    def __init__(self, app_name: str, launch_ui: bool = False):
         self.app_name = app_name
-        self.tracer = register(app_name)
-        self.session = px.launch_app()
+        self.tracer = register()
+        self.session = None
+        if launch_ui:
+            try:
+                self.session = px.launch_app()
+            except Exception as e:
+                print(f"Warning: Could not launch Phoenix UI: {e}")
         self.phoenix_project_name = "RAG_English_Learning"
 
 
     def generate_with_single_input(self, prompt: str, role: str = 'user', top_p: float = None, temperature: float = None,
-                               max_tokens: int = 500, model: str = "meta-llama/Llama-3.2-3B-Instruct-Turbo",
-                               api_key=None, use_openai: bool = False, **kwargs):
-        """Generate text with comprehensive Phoenix tracking."""
+                               max_tokens: int = 500, model: str = "gemini-2.5-pro", **kwargs):
+        """Using comprehensive outlook of parameters for LLM generation with Phoenix tracking."""
         with self.tracer.start_as_current_span("llm_generation", openinference_span_kind='llm') as span:
             try:
 
@@ -42,25 +45,33 @@ class PhoenixTracking:
                 if temperature is None:
                     temperature = 1.0
                 
-                if use_openai:
-                    llm = ChatOpenAI(
-                        model=model if "gpt" in model else "gpt-3.5-turbo",
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        model_kwargs={"top_p": top_p, **kwargs}
-                    )
-                else:
+                # if use_openai:
+                #     llm = ChatOpenAI(
+                #         model=model if "gpt" in model else "gpt-3.5-turbo",
+                #         temperature=temperature,
+                #         max_tokens=max_tokens,
+                #         model_kwargs={"top_p": top_p, **kwargs}
+                #     )
+                # else:
         
-                    if "GOOGLE_API_KEY" not in os.environ:
-                        os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
-                        model = ChatGoogleGenerativeAI(
-                            model="gemini-3-pro-preview",
-                            temperature=1.0,  
-                            max_tokens=None,
-                            timeout=None,
-                            max_retries=2,
+                #     if "GOOGLE_API_KEY" not in os.environ:
+                #         os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
+                #         model = ChatGoogleGenerativeAI(
+                #             model="gemini-3-pro-preview",
+                #             temperature=1.0,  
+                #             max_tokens=None,
+                #             timeout=None,
+                #             max_retries=2,
+                #     )
+                if "GOOGLE_API_KEY" not in os.environ:
+                    os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
+                    llm = ChatGoogleGenerativeAI(
+                        model="gemini-3-pro-preview",
+                        temperature=1.0,  
+                        max_tokens=None,
+                        timeout=None,
+                        max_retries=2,
                     )
-
                 
                 if role.lower() == 'system':
                     messages = [SystemMessage(content=prompt)]
@@ -206,32 +217,8 @@ class PhoenixTracking:
                 span.set_attribute("error.message", str(e))
                 raise
     
-    def generate_text(self, prompt: str):
-        """Generate text with comprehensive tracking."""
-        with self.tracer.start_as_current_span("generate_text", openinference_span_kind='chain') as span:
-            try:
-                span.add_event("Starting text generation")
-                span.set_attribute("input.prompt", prompt)
-                span.set_attribute("input.prompt_length", len(prompt))
-                
-                response = self.generate_with_single_input(
-                    **self.generate_params_dict(prompt=prompt, role='user')
-                )
-                
-                span.set_attribute("output.content", response['content'])
-                span.set_attribute("output.content_length", len(response['content']))
-                span.set_attribute("output.total_tokens", response.get('total_tokens', 0))
-                span.add_event("Text generation completed")
-                span.set_status(Status(StatusCode.OK))
-                return response['content']
-            
-            except Exception as e:
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-                span.set_attribute("error.type", type(e).__name__)
-                span.set_attribute("error.message", str(e))
-                raise
 
-    def generate_english_exam(self, temperature, top_p, max_tokens, model):
+    def generate(self, temperature, top_p, max_tokens, model, prompt_context=""):
         """Generate English exam with comprehensive RAG workflow tracking."""
         with self.tracer.start_as_current_span("generate_english_exam", openinference_span_kind='chain') as span:
             try:
@@ -242,12 +229,6 @@ class PhoenixTracking:
                 span.set_attribute("exam.model", model)
                 span.set_attribute("exam.type", "multiple_choice")
                 span.set_attribute("exam.question_count", 5)
-                
-                prompt_context = (
-                    "You are an expert English exam creator. Generate a 5-question multiple-choice "
-                    "English exam suitable for intermediate learners. Each question should have 4 options "
-                    "labeled A, B, C, and D, with one correct answer. Provide the correct answers at the end."
-                )
                 
                 span.add_event("Connecting to Weaviate")
                 client = weaviate.Client("http://localhost:8080")
@@ -279,5 +260,5 @@ class PhoenixTracking:
                 span.set_attribute("error.message", str(e))
                 span.add_event("Exam generation failed")
                 raise
-
+    
     

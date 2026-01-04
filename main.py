@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from phoenix_tracking import PhoenixTracking
 from database import (
     init_db,
     create_user,
@@ -23,6 +24,8 @@ import os, time, secrets
 
 init_db()
 app = FastAPI()
+
+phoenix_tracker = PhoenixTracking(app_name="FluentMind")
 
 app.add_middleware(SessionMiddleware, secret_key="dev-secret")
 
@@ -349,3 +352,40 @@ async def email_changes(request: Request):
     update_email(user_id, email)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Email updated successfully."})
+
+@app.get("/api/generate-exam")
+async def generate_exam(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    exam = phoenix_tracker.generate_english_exam(
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=2000,
+        model="gemini-2.5-pro"
+    )
+
+    return JSONResponse(status_code=200, content={"success": True, "exam": exam})
+@app.post("/api/submit-exam")
+async def submit_exam(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    payload = await request.json()
+    exam_answers = payload.get("exam_answers", "")
+
+    if not exam_answers:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Exam answers are required."})
+
+    feedback = phoenix_tracker.generate(
+        exam_answers,
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=2000,
+        model="gemini-2.5-pro",
+        context_prompt="You are an expert English tutor. Provide detailed feedback on the submitted exam answers."
+    )
+
+    return JSONResponse(status_code=200, content={"success": True, "feedback": feedback})

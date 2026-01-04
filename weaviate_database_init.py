@@ -69,7 +69,7 @@ def _ingest_vocabulary(client):
         client,
         VOCAB_COLLECTION,
         vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://host.docker.internal:11434",
+            api_endpoint="http://ollama:11434",
             model="nomic-embed-text",
         ),
     )
@@ -111,7 +111,7 @@ def _ingest_cefr_texts(client):
         client,
         CEFR_TEXT_COLLECTION,
         vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://host.docker.internal:11434",
+            api_endpoint="http://ollama:11434",
             model="nomic-embed-text",
         ),
         properties=[
@@ -142,7 +142,7 @@ def _ingest_grammar_profile(client):
         client,
         GRAMMAR_COLLECTION,
         vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://host.docker.internal:11434",
+            api_endpoint="http://ollama:11434",
             model="nomic-embed-text",
         ),
         properties=properties,

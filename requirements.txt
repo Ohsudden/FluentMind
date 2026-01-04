@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+starlette
+jinja2
+pwdlib
+langchain-google-genai
+arize-phoenix
+opentelemetry-api
+requests
+weaviate-client
+langchain-core
+fastapi[standard]
+itsdangerous
