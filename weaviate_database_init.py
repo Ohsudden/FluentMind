@@ -5,11 +5,18 @@ import weaviate
 from weaviate.classes.config import Configure, DataType, Property
 
 
-def ensure_collection(client: weaviate.WeaviateClient,name: str, *, vector_config=None,vectorizer_config=None,reranker_config=None,properties=None,
+def recreate_collection(
+    client: weaviate.WeaviateClient,
+    name: str,
+    *,
+    vector_config=None,
+    vectorizer_config=None,
+    reranker_config=None,
+    properties=None,
 ):
-    """Create the collection if missing and return the handle."""
+    """Drop collection if it exists (to reset schema) then create it."""
     if client.collections.exists(name):
-        return client.collections.get(name)
+        client.collections.delete(name)
 
     return client.collections.create(
         name=name,
@@ -31,14 +38,10 @@ VECTOR_SOURCE_PROPERTIES = [
     "headword",
     "pos",
     "CEFR",
-    "CoreInventory 1",
-    "CoreInventory 2",
-    "Threshold",
-    "notes",
 ]
 
 GRAMMAR_COLUMN_MAP = {
-    "ID": ("id", DataType.INT),
+    "ID": ("grammar_id", DataType.TEXT),  
     "Shorthand Code": ("shorthand_code", DataType.TEXT),
     "Grammatical Item": ("grammatical_item", DataType.TEXT),
     "Sentence Type": ("sentence_type", DataType.TEXT),
@@ -47,15 +50,12 @@ GRAMMAR_COLUMN_MAP = {
     "Core Inventory": ("core_inventory", DataType.TEXT),
     "EGP": ("egp", DataType.TEXT),
     "GSELO": ("gselo", DataType.TEXT),
-    "Notes": ("notes", DataType.TEXT),
-}
+    }
 
 def _clean_value(value):
     if pd.isna(value):
         return ""
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    return value
+    return str(value)
 
 
 def _ingest_records(collection, records, batch_size=200):
@@ -65,41 +65,28 @@ def _ingest_records(collection, records, batch_size=200):
 
 
 def _ingest_vocabulary(client):
-    collection = ensure_collection(
-        client,
-        VOCAB_COLLECTION,
-        vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://ollama:11434",
-            model="nomic-embed-text",
-        ),
-    )
-
-    df = pd.read_csv(DATASET_PATH)
-    records = df.to_dict(orient="records")
-
-    vectorizer_config = [
-        Configure.NamedVectors.text2vec_transformers(
-            name="vector",
-            source_properties=VECTOR_SOURCE_PROPERTIES,
-            vectorize_collection_name=False,
-            inference_url="http://127.0.0.1:5000",
-        )
+    shared_properties = [
+        Property(name="headword", vectorize_property_name=True, data_type=DataType.TEXT),
+        Property(name="pos", vectorize_property_name=True, data_type=DataType.TEXT),
+        Property(name="CEFR", vectorize_property_name=True, data_type=DataType.TEXT),
     ]
 
-    ensure_collection(
+    collection = recreate_collection(
+        client,
+        VOCAB_COLLECTION,
+        vectorizer_config=Configure.Vectorizer.none(),
+        properties=shared_properties,
+    )
+
+    df = pd.read_csv(DATASET_PATH)[["headword", "pos", "CEFR"]]
+    records = df.to_dict(orient="records")
+
+    recreate_collection(
         client,
         SECONDARY_COLLECTION,
-        vectorizer_config=vectorizer_config,
-        reranker_config=Configure.Reranker.transformers(),
-        properties=[
-            Property(name="headword", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="pos", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="CEFR", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="CoreInventory 1", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="CoreInventory 2", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="Threshold", vectorize_property_name=True, data_type=DataType.TEXT),
-            Property(name="notes", vectorize_property_name=True, data_type=DataType.TEXT),
-        ],
+        vectorizer_config=Configure.Vectorizer.none(),
+        reranker_config=None,
+        properties=shared_properties,
     )
 
     _ingest_records(collection, records)
@@ -107,13 +94,10 @@ def _ingest_vocabulary(client):
 
 
 def _ingest_cefr_texts(client):
-    collection = ensure_collection(
+    collection = recreate_collection(
         client,
         CEFR_TEXT_COLLECTION,
-        vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://ollama:11434",
-            model="nomic-embed-text",
-        ),
+        vectorizer_config=Configure.Vectorizer.none(),
         properties=[
             Property(name="text", data_type=DataType.TEXT, vectorize_property_name=True),
             Property(name="label", data_type=DataType.TEXT, vectorize_property_name=True),
@@ -138,13 +122,10 @@ def _ingest_grammar_profile(client):
             Property(name=prop_name, data_type=data_type, vectorize_property_name=True)
         )
 
-    collection = ensure_collection(
+    collection = recreate_collection(
         client,
         GRAMMAR_COLLECTION,
-        vector_config=Configure.Vectors.text2vec_ollama(
-            api_endpoint="http://ollama:11434",
-            model="nomic-embed-text",
-        ),
+        vectorizer_config=Configure.Vectorizer.none(),
         properties=properties,
     )
 

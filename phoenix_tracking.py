@@ -15,7 +15,8 @@ from langchain_core.prompts import ChatPromptTemplate
 class PhoenixTracking:
     def __init__(self, app_name: str, launch_ui: bool = False):
         self.app_name = app_name
-        self.tracer = register()
+        tracer_provider = register()
+        self.tracer = tracer_provider.get_tracer(__name__)
         self.session = None
         if launch_ui:
             try:
@@ -231,7 +232,7 @@ class PhoenixTracking:
                 span.set_attribute("exam.question_count", 5)
                 
                 span.add_event("Connecting to Weaviate")
-                client = weaviate.Client("http://localhost:8080")
+                client = weaviate.connect_to_local(host="localhost", port=8080, grpc_port=50051)
                 
                 span.add_event("Creating augmented prompt with grammar context")
                 augmented_prompt = self.augmented_prompt(
@@ -260,5 +261,13 @@ class PhoenixTracking:
                 span.set_attribute("error.message", str(e))
                 span.add_event("Exam generation failed")
                 raise
+
+            finally:
+                # Ensure the Weaviate connection is closed to release sockets
+                try:
+                    if 'client' in locals():
+                        client.close()
+                except Exception:
+                    pass
     
     

@@ -359,11 +359,12 @@ async def generate_exam(request: Request):
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
 
-    exam = phoenix_tracker.generate_english_exam(
+    exam = phoenix_tracker.generate(
         temperature=0.7,
         top_p=0.9,
         max_tokens=2000,
-        model="gemini-2.5-pro"
+        model="gemini-2.5-pro",
+        prompt_context="You are an expert English exam creator. Generate a 5-question multiple-choice "
     )
 
     return JSONResponse(status_code=200, content={"success": True, "exam": exam})
