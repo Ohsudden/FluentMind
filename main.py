@@ -31,10 +31,25 @@ async def root(request: Request):
 async def learn(request: Request, exam: str = None):
     level = request.session.get("proficiency_level")
     
+    if exam and exam != "current":
+        # Assume exam is ID
+        try:
+            test_id = int(exam)
+            test_data = db.get_test(test_id)
+            if test_data and test_data["test_html"]:
+                 return templates.TemplateResponse(request, "level_confirmation.html", {
+                    "request": request, 
+                    "exam_content": test_data["test_html"],
+                    "test_id": test_id
+                })
+        except ValueError:
+            pass
+
     if exam == "current" and "exam_content" in request.session:
         return templates.TemplateResponse(request, "level_confirmation.html", {
             "request": request, 
-            "exam_content": request.session["exam_content"]
+            "exam_content": request.session["exam_content"],
+            "test_id": "session" 
         })
 
     if not level:
@@ -364,10 +379,31 @@ async def generate_exam(request: Request):
             top_p=0.9,
             max_tokens=2000,
             model="gemini-2.5-flash-preview-09-2025",
-            prompt_context="You are an expert English exam creator. Generate a 20-question multiple-choice "
+            prompt_context="""You are an expert English exam creator. Generate a 20-question multiple-choice English placement test.
+            
+            IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse().
+            
+            The JSON structure MUST be:
+            {
+                "questions": [
+                    {
+                        "id": 1,
+                        "question": "Question text here",
+                        "options": {
+                            "A": "Option A text",
+                            "B": "Option B text",
+                            "C": "Option C text",
+                            "D": "Option D text"
+                        }
+                    }
+                ]
+            }
+            
+            Ensure the questions cover a range of difficulty levels (A1 to C2) to assess proficiency accurately.
+            JSON ONLY."""
         )
-        request.session["exam_content"] = generation_result["content"]
-        return JSONResponse(status_code=200, content={"success": True, "exam": {"id": "current"}})
+        test_id = db.create_pending_test(user_id, generation_result["content"])
+        return JSONResponse(status_code=200, content={"success": True, "exam": {"id": test_id}})
     except Exception as e:
         print(f"Error generating exam: {e}")
         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
@@ -380,13 +416,32 @@ async def submit_exam(request: Request):
 
     payload = await request.json()
     exam_answers = payload.get("exam_answers", "")
+    test_id_val = payload.get("test_id")
 
     if not exam_answers:
         return JSONResponse(status_code=400, content={"success": False, "message": "Exam answers are required."})
+    
+    exam_content = ""
+    if test_id_val and str(test_id_val) != "session":
+        try:
+            test_data = db.get_test(int(test_id_val))
+            if test_data:
+                exam_content = test_data["test_html"]
+        except Exception:
+            pass
+
+    if not exam_content:
+        exam_content = request.session.get("exam_content", "")
+    
     english_test_check_propmt = f"""You are an expert English tutor. Provide an English level based on the student's answers to the exam below. 
     Write only one of CEFR levels (A1, A2, B1, B2, C1, C2) as the response.
-    Here is the exam and the student's answers:
-    {exam_answers}"""
+    
+    Here is the exam questions:
+    {exam_content}
+    
+    Here is the student's answers:
+    {exam_answers}
+    """
     feedback_result = phoenix_tracker.generate(
         temperature=0.2,
         top_p=0.5,
@@ -397,14 +452,26 @@ async def submit_exam(request: Request):
     feedback = feedback_result["content"]
     run_id = feedback_result["run_id"]
 
-    db.add_test(
-        user_id=user_id,
-        test_html=request.session.get("exam_content", ""),
-        submitted_answers_json=exam_answers,
-        assessed=True,
-        assessed_level=feedback,
-        assessed_by_model="gemini-2.5-flash-preview-09-2025",
-        phoenix_run_id=run_id
-    )
+    if test_id_val and str(test_id_val) != "session":
+        try:
+            db.update_test_submission(
+                test_id=int(test_id_val),
+                submitted_answers_json=exam_answers,
+                assessed_level=feedback,
+                assessed_by_model="gemini-2.5-flash-preview-09-2025",
+                phoenix_run_id=run_id
+            )
+        except Exception as e:
+            print(f"Error updating test: {e}")
+    else:
+        db.add_test(
+            user_id=user_id,
+            test_html=request.session.get("exam_content", ""),
+            submitted_answers_json=exam_answers,
+            assessed=True,
+            assessed_level=feedback,
+            assessed_by_model="gemini-2.5-flash-preview-09-2025",
+            phoenix_run_id=run_id
+        )
 
     return JSONResponse(status_code=200, content={"success": True, "feedback": feedback})

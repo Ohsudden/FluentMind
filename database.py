@@ -360,4 +360,44 @@ class Database:
         )
         connection.commit()
         connection.close()
+
+    def create_pending_test(self, user_id: int, test_html: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO test (user_id, test_html) VALUES (?, ?)",
+            (user_id, test_html)
+        )
+        test_id = cursor.lastrowid
+        connection.commit()
+        connection.close()
+        return test_id
+
+    def get_test(self, test_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT test_id, user_id, test_html, submitted_answers_json FROM test WHERE test_id = ?",
+            (test_id,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        if not row:
+            return None
+        return {
+            "test_id": row[0],
+            "user_id": row[1],
+            "test_html": row[2],
+            "submitted_answers_json": row[3]
+        }
+
+    def update_test_submission(self, test_id: int, submitted_answers_json: str, assessed_level: str, assessed_by_model: str, phoenix_run_id: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE test SET submitted_answers_json = ?, assessed = 1, assessed_level = ?, assessed_by_model = ?, phoenix_run_id = ?, submitted_at = CURRENT_TIMESTAMP WHERE test_id = ?",
+            (submitted_answers_json, assessed_level, assessed_by_model, phoenix_run_id, test_id)
+        )
+        connection.commit()
+        connection.close()
     

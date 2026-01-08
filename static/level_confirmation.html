@@ -211,17 +211,74 @@
     }
 
     {% if exam_content %}
+    const currentTestId = "{{ test_id }}";
     document.addEventListener('DOMContentLoaded', function() {
-        const content = `{{ exam_content | replace('`', '\`') | replace('$', '\$') }}`;
+        // Use tojson to safely serialize the string for JS, avoiding manual escape issues
+        let contentStr = {{ exam_content | tojson }}; 
+        console.log("Raw LLM content:", contentStr);
+
+        let examData = null;
+        try {
+             // 1. Try removing markdown code blocks if they exist
+            let cleanStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            // 2. Try parsing
+            try {
+                examData = JSON.parse(cleanStr);
+            } catch (e) {
+                console.warn("Direct JSON parse failed, trying fuzzy matching...", e);
+                // 3. Try finding the first '{' and last '}'
+                const firstOpen = cleanStr.indexOf('{');
+                const lastClose = cleanStr.lastIndexOf('}');
+                if (firstOpen !== -1 && lastClose !== -1) {
+                    const potentialJson = cleanStr.substring(firstOpen, lastClose + 1);
+                    examData = JSON.parse(potentialJson);
+                } else {
+                    throw e;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse exam JSON:", e);
+        }
+
         const modal = document.getElementsByClassName('level-box')[0];
-        modal.innerHTML = `
-          <div class="modal-content" id="exam-display">
-              <h2>English Level Test</h2>
-              <div class="exam-content" style="text-align: left; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; margin-bottom: 20px;">${content}</div>
+        
+        let htmlContent = '';
+        if (examData && examData.questions) {
+            htmlContent += '<form id="exam-form">';
+            examData.questions.forEach(q => {
+                htmlContent += `<div class="question-block" style="margin-bottom: 20px; text-align: left;">
+                    <p><strong>${q.id}. ${q.question}</strong></p>
+                    <div class="answer-options">`;
+                for (const [key, val] of Object.entries(q.options)) {
+                    htmlContent += `<label style="display: block; margin: 5px 0; cursor: pointer;">
+                        <input type="radio" name="${q.id}" value="${key}" required> 
+                        <span style="font-weight: bold;">${key})</span> ${val}
+                    </label>`;
+                }
+                htmlContent += `</div></div>`;
+            });
+            htmlContent += `<button type="button" onclick="submitExamAnswers()">Submit Answers</button>
+            </form>`;
+        } else {
+             // Fallback for unstructured content
+             console.warn("Falling back to text mode");
+             htmlContent = `
+             <div class="alert" style="color: red; margin-bottom: 10px;">Displaying raw text (Parsing failed)</div>
+             <div style="margin-bottom: 10px;"><button type="button" onclick="passTest()">Regenerate Test</button></div>
+             <div class="exam-content" style="text-align: left; white-space: pre-wrap; max-height: 50vh; overflow-y: auto; margin-bottom: 20px; border: 1px solid #ccc; padding: 10px;">${contentStr}</div>
               <form id="exam-form">
                   <textarea id="exam-answers" name="exam_answers" placeholder="Write your answers here (e.g., 1. A, 2. B...)" rows="5" style="width:100%; margin-bottom: 10px; padding: 10px;"></textarea>
                   <button type="button" onclick="submitExamAnswers()">Submit Answers</button>
-              </form>
+              </form>`;
+        }
+
+
+        modal.innerHTML = `
+          <div class="modal-content" id="exam-display">
+              <h2>English Level Test</h2>
+              <div style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+                ${htmlContent}
+              </div>
               <div id="submission-status" class="status"></div>
           </div>`;
         
@@ -231,13 +288,42 @@
     });
 
     function submitExamAnswers() {
-        const answers = document.getElementById('exam-answers').value;
+        const form = document.getElementById('exam-form');
         const status = document.getElementById('submission-status');
-        if (!answers.trim()) {
-            status.textContent = "Please write your answers.";
-            return;
-        }
+        let answersPayload = null;
         
+        if (form.querySelector('input[type="radio"]')) {
+             const formData = new FormData(form);
+             const answers = {};
+             let allAnswered = true;
+             
+             const questions = form.querySelectorAll('.question-block');
+             questions.forEach(qBlock => {
+                 const inputs = qBlock.querySelectorAll('input[type="radio"]');
+                 const name = inputs[0].name;
+                 if (!formData.has(name)) {
+                     allAnswered = false;
+                 }
+             });
+
+             if (!allAnswered) {
+                 status.textContent = "Please answer all questions.";
+                 return;
+             }
+             
+             for (const [key, value] of formData.entries()) {
+                answers[key] = value;
+             }
+             answersPayload = JSON.stringify(answers); 
+        } else {
+             const textArea = document.getElementById('exam-answers');
+             if (!textArea.value.trim()) {
+                status.textContent = "Please write your answers.";
+                return;
+             }
+             answersPayload = textArea.value;
+        }
+
         status.textContent = "Submitting...";
         
         fetch('/api/submit-exam', {
@@ -245,7 +331,7 @@
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ exam_answers: answers })
+            body: JSON.stringify({ exam_answers: answersPayload, test_id: currentTestId })
         })
         .then(response => response.json())
         .then(data => {
