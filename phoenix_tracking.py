@@ -259,29 +259,29 @@ class PhoenixTracking:
                 raise
     
 
-    def generate(self, temperature, top_p, max_tokens, model, prompt_context=""):
+    def generate(self, temperature, top_p, max_tokens, model, prompt_context="", name="English Exam", type="exam", collection_name="CefrGrammarProfile"):
         """Generate English exam with comprehensive RAG workflow tracking."""
-        with self.tracer.start_as_current_span("generate_english_exam", openinference_span_kind='chain') as span:
+        with self.tracer.start_as_current_span(name, openinference_span_kind='chain') as span:
             try:
                 span.add_event("Starting English exam generation")
-                span.set_attribute("exam.temperature", temperature)
-                span.set_attribute("exam.top_p", top_p)
-                span.set_attribute("exam.max_tokens", max_tokens)
-                span.set_attribute("exam.model", model)
-                span.set_attribute("exam.type", "multiple_choice")
-                span.set_attribute("exam.question_count", 5)
+                span.set_attribute(f"{type}.temperature", temperature)
+                span.set_attribute(f"{type}.top_p", top_p)
+                span.set_attribute(f"{type}.max_tokens", max_tokens)
+                span.set_attribute(f"{type}.model", model)
+                span.set_attribute(f"{type}.type", "multiple_choice")
+                span.set_attribute(f"{type}.question_count", 5)
                 
                 span.add_event("Connecting to Weaviate")
                 client = weaviate.connect_to_local(host="localhost", port=8080, grpc_port=50051)
                 
-                span.add_event("Creating augmented prompt with grammar context")
+                span.add_event("Creating augmented prompt")
                 augmented_prompt = self.augmented_prompt(
                     query=prompt_context, use_rag=True,
-                    collection=client.collections.get("CefrGrammarProfile"),
+                    collection=client.collections.get(collection_name),
                     top_k=5, retrieve_function=self.hybrid_retrieve)
                 
-                span.set_attribute("exam.augmented_prompt_length", len(augmented_prompt))
-                span.add_event("Generating exam with LLM")
+                span.set_attribute(f"{type}.augmented_prompt_length", len(augmented_prompt))
+                span.add_event(f"Generating {type} with LLM")
                 
                 response = self.generate_with_single_input(
                     **self.generate_params_dict(prompt=augmented_prompt, role='user', 
@@ -289,9 +289,9 @@ class PhoenixTracking:
                                                max_tokens=max_tokens, model=model)
                 )
                 
-                span.set_attribute("exam.output_length", len(response['content']))
-                span.set_attribute("exam.total_tokens", response.get('total_tokens', 0))
-                span.add_event("Exam generation completed successfully")
+                span.set_attribute(f"{type}.output_length", len(response['content']))
+                span.set_attribute(f"{type}.total_tokens", response.get('total_tokens', 0))
+                span.add_event(f"{type.capitalize()} generation completed successfully")
                 span.set_status(Status(StatusCode.OK))
                 trace_id = f"{span.get_span_context().trace_id:032x}"
                 return {"content": response['content'], "run_id": trace_id}
@@ -300,7 +300,7 @@ class PhoenixTracking:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
                 span.set_attribute("error.type", type(e).__name__)
                 span.set_attribute("error.message", str(e))
-                span.add_event("Exam generation failed")
+                span.add_event(f"{type.capitalize()} generation failed")
                 raise
 
             finally:
@@ -310,4 +310,40 @@ class PhoenixTracking:
                 except Exception:
                     pass
     
-    
+    def generate_image(self, prompt: str, model: str = "gemini-3-pro-image-preview", size: str = "1024x1024", n: int =1) -> dict:
+        """Generate image with Phoenix tracking."""
+        with self.tracer.start_as_current_span("image_generation", openinference_span_kind='llm') as span:
+            try:
+                span.add_event("Starting image generation")
+                span.set_attribute("llm.model_name", model)
+                span.set_attribute("llm.input.prompt", prompt)
+                span.set_attribute("llm.image.size", size)
+                span.set_attribute("llm.image.count", n)
+                
+                if "GOOGLE_API_KEY" not in os.environ:
+                    raise ValueError("GOOGLE_API_KEY environment variable is not set. Please set it in your .env file or environment.")
+                
+                llm = ChatGoogleGenerativeAI(
+                    model=model,
+                    temperature=1.0,  
+                    max_tokens=None,
+                    timeout=None,
+                    max_retries=2,
+                )
+                
+                response = llm.generate_image(prompt=prompt, n=n, size=size)
+                
+                span.set_attribute("llm.image.generated_count", len(response.data))
+                for i, img in enumerate(response.data):
+                    span.set_attribute(f"llm.image.url.{i}", img.url)
+                
+                span.add_event("Image generation completed")
+                span.set_status(Status(StatusCode.OK))
+                return {"images": [img.url for img in response.data]}
+                
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, str(e)))
+                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.message", str(e))
+                span.add_event("Image generation failed")
+                raise Exception(f"Failed to generate image. Error: {e}")

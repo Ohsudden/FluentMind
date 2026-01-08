@@ -32,7 +32,6 @@ async def learn(request: Request, exam: str = None):
     level = request.session.get("proficiency_level")
     
     if exam and exam != "current":
-        # Assume exam is ID
         try:
             test_id = int(exam)
             test_data = db.get_test(test_id)
@@ -55,7 +54,7 @@ async def learn(request: Request, exam: str = None):
     if not level:
         return templates.TemplateResponse(request, "level_confirmation.html", {"request": request})
     else:
-        return 'Good Job! Your level is already set.'
+        return templates.TemplateResponse(request, "learning_dashboard.html", {"request": request, "level": level})
 
 
 @app.get("/pricing", response_class=HTMLResponse)
@@ -161,15 +160,6 @@ def _ensure_authenticated(request: Request):
     return user_id
 
 
-@app.get("/api/vocabulary")
-async def api_get_vocabulary(request: Request):
-    try:
-        user_id = _ensure_authenticated(request)
-    except HTTPException as exc:
-        return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
-
-    words = db.get_vocabulary_by_user(user_id)
-    return JSONResponse(status_code=200, content={"success": True, "words": words})
 
 
 @app.post("/api/vocabulary")
@@ -400,8 +390,7 @@ async def generate_exam(request: Request):
             }
             
             Ensure the questions cover a range of difficulty levels (A1 to C2) to assess proficiency accurately.
-            JSON ONLY."""
-        )
+            JSON ONLY.""", name="English Exam", type="exam", collection_name="CefrGrammarProfile")
         test_id = db.create_pending_test(user_id, generation_result["content"])
         return JSONResponse(status_code=200, content={"success": True, "exam": {"id": test_id}})
     except Exception as e:
@@ -473,5 +462,61 @@ async def submit_exam(request: Request):
             assessed_by_model="gemini-2.5-flash-preview-09-2025",
             phoenix_run_id=run_id
         )
-
+    db.update_english_level(user_id, feedback)
     return JSONResponse(status_code=200, content={"success": True, "feedback": feedback})
+
+@app.get("/api/generate-course")
+async def generate_course(request: Request, level: str):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    response = phoenix_tracker.generate(
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=3000,
+        model="gemini-2.5-flash-preview-09-2025",
+        prompt_context=f"""You are an expert English course creator. Create a detailed 8-week English course for a student at {level} level. 
+        IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse(). The JSON structure MUST be:
+        {{
+            "title": "Course Title",
+            "description": "Brief description of the course",
+            "duration_weeks": 8,
+            "course_plan": [
+                {{
+                    "module": 1,
+                    "topics": ["Topic 1", "Topic 2"],
+                    "objectives": ["Objective 1", "Objective 2"],
+                    "activities": ["Activity 1", "Activity 2"]
+                }}
+            ]
+        }}
+        Ensure the course is engaging and covers all essential skills: reading, writing, speaking.
+        JSON ONLY.""", name="English Course", type="course", collection_name="CefrCourseProfile")
+    db.add_course(level = db.get_user_by_id(user_id=user_id), title = response.content['title'], description = response.content['description'], 
+                  duration_weeks = response.content['duration_weeks'], course_plan = response.content['course_plan'])
+    return JSONResponse(status_code=200, content={"success": True, "course": response.content})
+
+@app.get("/api/generate-module")
+async def generate_module(request: Request, course_id: int, module_number: int):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    response = phoenix_tracker.generate(
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=2000,
+        model="gemini-2.5-flash-preview-09-2025",
+        prompt_context=f"""You are an expert English lesson planner. Create a detailed lesson plan for module {module_number} of the course with ID {course_id}. 
+        The lesson plan should include objectives, key topics, activities, and assessment methods.
+        IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse(). The JSON structure MUST be:
+        {{
+            "module": {module_number},
+            "objectives": ["Objective 1", "Objective 2"],
+            "topics": ["Topic 1", "Topic 2"],
+            "activities": ["Activity 1", "Activity 2"],
+            "assessment_methods": ["Method 1", "Method 2"]
+        }}
+        Ensure the lesson is engaging and aligns with the overall course goals.
+        JSON ONLY.""", name="English Lesson Plan", type="lesson_plan", collection_name="CefrCourseProfile")
+    db.add_module(course_id = course_id, module_number = module_number, module_content = response.content)
+    return JSONResponse(status_code=200, content={"success": True, "module": response.content})

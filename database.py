@@ -401,3 +401,12 @@ class Database:
         connection.commit()
         connection.close()
     
+    def update_english_level(self, user_id: int, new_level: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET proficiency_level = ? WHERE user_id = ?",
+            (new_level, user_id)
+        )
+        connection.commit()
+        connection.close()

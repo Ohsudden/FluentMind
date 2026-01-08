@@ -213,20 +213,16 @@
     {% if exam_content %}
     const currentTestId = "{{ test_id }}";
     document.addEventListener('DOMContentLoaded', function() {
-        // Use tojson to safely serialize the string for JS, avoiding manual escape issues
         let contentStr = {{ exam_content | tojson }}; 
         console.log("Raw LLM content:", contentStr);
 
         let examData = null;
         try {
-             // 1. Try removing markdown code blocks if they exist
             let cleanStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            // 2. Try parsing
             try {
                 examData = JSON.parse(cleanStr);
             } catch (e) {
                 console.warn("Direct JSON parse failed, trying fuzzy matching...", e);
-                // 3. Try finding the first '{' and last '}'
                 const firstOpen = cleanStr.indexOf('{');
                 const lastClose = cleanStr.lastIndexOf('}');
                 if (firstOpen !== -1 && lastClose !== -1) {
@@ -260,7 +256,6 @@
             htmlContent += `<button type="button" onclick="submitExamAnswers()">Submit Answers</button>
             </form>`;
         } else {
-             // Fallback for unstructured content
              console.warn("Falling back to text mode");
              htmlContent = `
              <div class="alert" style="color: red; margin-bottom: 10px;">Displaying raw text (Parsing failed)</div>

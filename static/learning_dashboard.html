@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Confirm Your English Level – FluentMind</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/level-confirmation.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+
+</head>
+<body class="level-confirmation-page">
+  <header>
+    <div class="wrap row">
+      <div class="brand">
+        <img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
+        <span>FluentMind</span>
+      </div>
+      <nav>
+        <a href="/">Main</a>
+        <a href="/registration" class="active">Learn now</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/contacts">Contacts</a>
+      </nav>
+      <div class="lang">en | ua</div>
+    </div>
+  </header>
+
+  <main class="wrap settings-wrapper">
+    <aside class="settings-sidebar">
+			<nav class="settings-nav" aria-label="Profile navigation">
+				<button type="button" class="active">
+					<img src="{{ url_for('static', path='img/settings/nav-learn.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label"><a href='/learn'>Learn</a></span>
+				</button>
+				<button type="button">
+					<img src="{{ url_for('static', path='img/settings/nav-vocabulary.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+          <span class="settings-nav__label"><a href='/vocabulary'>Vocabulary</a></span>
+				</button>
+				<button type="button">
+					<img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label"><a href=''>Previous lessons</a></span>
+				</button>
+				<button type="button">
+					<img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
+					<span class="settings-nav__label"><a href='/settings'>Settings</a></span>
+				</button>
+			</nav>
+		</aside>
+
+    <section class="create-a-course">
+      
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div class="foot-brand">
+          <img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
+        </div>
+        <ul class="contact-list">
+          <li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+          <li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+          <li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+        </ul>
+        <div>
+          <div class="socials-foot">
+            <img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+            <img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+            <img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
+          </div>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>©2025 FluentMind All rights reserved.</span>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of use</a>
+        <a href="#">Sitemap</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
