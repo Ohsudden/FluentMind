@@ -11,3 +11,4 @@ weaviate-client
 langchain-core
 fastapi[standard]
 itsdangerous
+python-dotenv

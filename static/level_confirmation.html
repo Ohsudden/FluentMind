@@ -209,6 +209,59 @@
               window.location.href =  `/learn`;
             }, 10);
     }
+
+    {% if exam_content %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const content = `{{ exam_content | replace('`', '\`') | replace('$', '\$') }}`;
+        const modal = document.getElementsByClassName('level-box')[0];
+        modal.innerHTML = `
+          <div class="modal-content" id="exam-display">
+              <h2>English Level Test</h2>
+              <div class="exam-content" style="text-align: left; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; margin-bottom: 20px;">${content}</div>
+              <form id="exam-form">
+                  <textarea id="exam-answers" name="exam_answers" placeholder="Write your answers here (e.g., 1. A, 2. B...)" rows="5" style="width:100%; margin-bottom: 10px; padding: 10px;"></textarea>
+                  <button type="button" onclick="submitExamAnswers()">Submit Answers</button>
+              </form>
+              <div id="submission-status" class="status"></div>
+          </div>`;
+        
+        Array.from(document.getElementsByClassName('options')).forEach(option => {
+          option.style.display = 'none';
+        });
+    });
+
+    function submitExamAnswers() {
+        const answers = document.getElementById('exam-answers').value;
+        const status = document.getElementById('submission-status');
+        if (!answers.trim()) {
+            status.textContent = "Please write your answers.";
+            return;
+        }
+        
+        status.textContent = "Submitting...";
+        
+        fetch('/api/submit-exam', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ exam_answers: answers })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                status.textContent = "Submitted successfully! Feedback: " + (data.feedback.content || "Received");
+                alert("Feedback: " + (data.feedback.content || "Received"));
+                window.location.href = "/learn"; 
+            } else {
+                status.textContent = "Error: " + data.message;
+            }
+        })
+        .catch(err => {
+            status.textContent = "Network error: " + err.message;
+        });
+    }
+    {% endif %}
   </script>
 </body>
 </html>

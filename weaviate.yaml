@@ -29,6 +29,7 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    entrypoint: sh -c "ollama pull nomic-embed-text; ollama serve"
 
 volumes:
   weaviate_data:

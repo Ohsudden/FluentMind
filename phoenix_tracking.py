@@ -1,9 +1,15 @@
 import getpass
+import os
+import socket
+
+os.environ.setdefault("OTEL_TRACES_EXPORTER", "none")
+os.environ.setdefault("OTEL_METRICS_EXPORTER", "none")
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 import phoenix as px
 from phoenix.otel import register
+from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-import os
 import requests
 import json
 import weaviate
@@ -15,18 +21,45 @@ from langchain_core.prompts import ChatPromptTemplate
 class PhoenixTracking:
     def __init__(self, app_name: str, launch_ui: bool = False):
         self.app_name = app_name
-        tracer_provider = register()
-        self.tracer = tracer_provider.get_tracer(__name__)
         self.session = None
-        if launch_ui:
+        
+        ui_port = 6006
+        grpc_port = int(os.environ.get("PHOENIX_GRPC_PORT", 4317))
+
+        def is_port_in_use(port):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                return s.connect_ex(('localhost', port)) == 0
+
+        phoenix_running = False
+        if is_port_in_use(ui_port):
+            phoenix_running = True
+            print(f"Phoenix UI port ({ui_port}) is already in use. Assuming Phoenix is running.")
+        
+        if not phoenix_running:
+            if is_port_in_use(grpc_port):
+                print(f"Phoenix gRPC port ({grpc_port}) is in use. Finding a free port...")
+                new_port = grpc_port + 1
+                while is_port_in_use(new_port):
+                    new_port += 1
+                os.environ["PHOENIX_GRPC_PORT"] = str(new_port)
+                print(f"Switched Phoenix gRPC port to {new_port}")
+
             try:
                 self.session = px.launch_app()
             except Exception as e:
                 print(f"Warning: Could not launch Phoenix UI: {e}")
+
+        try:
+            tracer_provider = register()
+        except Exception as e:
+            print(f"Warning: Could not register tracer: {e}")
+            tracer_provider = trace.get_tracer_provider()
+
+        self.tracer = tracer_provider.get_tracer(__name__)
         self.phoenix_project_name = "RAG_English_Learning"
 
 
-    def generate_with_single_input(self, prompt: str, role: str = 'user', top_p: float = None, temperature: float = None,
+    def generate_with_single_input(self, prompt: str, role: str = 'user', top_p: float = None, temperature: float = 1.0,
                                max_tokens: int = 500, model: str = "gemini-2.5-pro", **kwargs):
         """Using comprehensive outlook of parameters for LLM generation with Phoenix tracking."""
         with self.tracer.start_as_current_span("llm_generation", openinference_span_kind='llm') as span:
@@ -39,7 +72,6 @@ class PhoenixTracking:
                 span.set_attribute("llm.temperature", temperature if temperature else 1.0)
                 span.set_attribute("llm.top_p", top_p if top_p else 1.0)
                 span.set_attribute("llm.max_tokens", max_tokens)
-                span.set_attribute("llm.provider", "openai" if use_openai else "together")
                 
                 if top_p is None:
                     top_p = 1.0
@@ -65,14 +97,15 @@ class PhoenixTracking:
                 #             max_retries=2,
                 #     )
                 if "GOOGLE_API_KEY" not in os.environ:
-                    os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
-                    llm = ChatGoogleGenerativeAI(
-                        model="gemini-3-pro-preview",
-                        temperature=1.0,  
-                        max_tokens=None,
-                        timeout=None,
-                        max_retries=2,
-                    )
+                    raise ValueError("GOOGLE_API_KEY environment variable is not set. Please set it in your .env file or environment.")
+                
+                llm = ChatGoogleGenerativeAI(
+                    model=model,
+                    temperature=temperature,  
+                    max_tokens=max_tokens,
+                    timeout=None,
+                    max_retries=2,
+                )
                 
                 if role.lower() == 'system':
                     messages = [SystemMessage(content=prompt)]
@@ -115,13 +148,13 @@ class PhoenixTracking:
                 span.add_event("LLM generation failed")
                 raise Exception(f"Failed to generate response with LangChain. Error: {e}")
     
-    def generate_params_dict(
+    def generate_params_dict(self,
     prompt: str,
     temperature: float = 1.0,
     role: str = 'user',
     top_p: float = 1.0,
     max_tokens: int = 500,
-    model: str = "meta-llama/Llama-3.2-3B-Instruct-Turbo"
+    model: str = "gemini-2.5-pro",
     ) -> dict:
         
         kwargs = {
@@ -193,17 +226,24 @@ class PhoenixTracking:
                 formatted_data = ""
                 
                 for document in top_k_documents:
-                    document_layout = (
-                        f"Title: {document['title']}, Chunk: {document['chunk']}, "
-                        f"Published at: {document['pubDate']}\nURL: {document['link']}"
-                    )
+                    if 'grammatical_item' in document:
+                         document_layout = (
+                            f"Grammar Item: {document.get('grammatical_item', 'N/A')}, "
+                            f"Level: {document.get('cefr_j_level', 'N/A')}, "
+                            f"Sentence Type: {document.get('sentence_type', 'N/A')}"
+                        )
+                    else:
+                        document_layout = (
+                            f"Title: {document.get('title', 'N/A')}, Chunk: {document.get('chunk', 'N/A')}, "
+                            f"Published at: {document.get('pubDate', 'N/A')}\nURL: {document.get('link', 'N/A')}"
+                        )
                     formatted_data += document_layout + "\n"
                 
                 retrieve_data_formatted = formatted_data  
                 prompt = (
                     f"Prompt Context:{prompt_context}\n"
                     f"Query: {query}\n"
-                    f"2024 News: {retrieve_data_formatted}"
+                    f"Context Information: {retrieve_data_formatted}"
                 )
                 
                 span.set_attribute("rag.augmented_prompt_length", len(prompt))
@@ -253,7 +293,8 @@ class PhoenixTracking:
                 span.set_attribute("exam.total_tokens", response.get('total_tokens', 0))
                 span.add_event("Exam generation completed successfully")
                 span.set_status(Status(StatusCode.OK))
-                return response['content']
+                trace_id = f"{span.get_span_context().trace_id:032x}"
+                return {"content": response['content'], "run_id": trace_id}
             
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
@@ -263,7 +304,6 @@ class PhoenixTracking:
                 raise
 
             finally:
-                # Ensure the Weaviate connection is closed to release sockets
                 try:
                     if 'client' in locals():
                         client.close()

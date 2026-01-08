@@ -74,7 +74,10 @@ def _ingest_vocabulary(client):
     collection = recreate_collection(
         client,
         VOCAB_COLLECTION,
-        vectorizer_config=Configure.Vectorizer.none(),
+        vectorizer_config=Configure.Vectorizer.text2vec_ollama(
+            api_endpoint="http://ollama:11434",
+            model="nomic-embed-text",
+        ),
         properties=shared_properties,
     )
 
@@ -97,7 +100,10 @@ def _ingest_cefr_texts(client):
     collection = recreate_collection(
         client,
         CEFR_TEXT_COLLECTION,
-        vectorizer_config=Configure.Vectorizer.none(),
+        vectorizer_config=Configure.Vectorizer.text2vec_ollama(
+            api_endpoint="http://ollama:11434",
+            model="nomic-embed-text",
+        ),
         properties=[
             Property(name="text", data_type=DataType.TEXT, vectorize_property_name=True),
             Property(name="label", data_type=DataType.TEXT, vectorize_property_name=True),
@@ -125,7 +131,10 @@ def _ingest_grammar_profile(client):
     collection = recreate_collection(
         client,
         GRAMMAR_COLLECTION,
-        vectorizer_config=Configure.Vectorizer.none(),
+        vectorizer_config=Configure.Vectorizer.text2vec_ollama(
+            api_endpoint="http://ollama:11434",
+            model="nomic-embed-text",
+        ),
         properties=properties,
     )
 

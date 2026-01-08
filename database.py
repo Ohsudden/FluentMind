@@ -4,11 +4,15 @@ import json
 from datetime import datetime
 from pwdlib import PasswordHash
 
-def init_db():
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
+class Database:
+    def __init__(self, db_name='English_courses.db'):
+        self.db_name = db_name
 
-    cursor.executescript('''
+    def init_db(self):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+
+        cursor.executescript('''
     CREATE TABLE IF NOT EXISTS user (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -105,190 +109,255 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES user(user_id)
     );
     ''')
-    connection.commit()
-    connection.close()
+        connection.commit()
+        connection.close()
 
-def create_user(name, surname, email, password):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    password_hash = PasswordHash.recommended().hash(password)
+    def create_user(self, name, surname, email, password):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        password_hash = PasswordHash.recommended().hash(password)
 
-    cursor.execute(
-        "INSERT INTO user (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
-        (name, surname, email, password_hash)
-    )
-    connection.commit()
-    connection.close()
-    
-    return True, "User registered successfully."
+        try:
+            cursor.execute(
+                "INSERT INTO user (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
+                (name, surname, email, password_hash)
+            )
+            connection.commit()
+            return True, "User registered successfully."
+        except sqlite3.IntegrityError:
+            return False, "Email already exists."
+        finally:
+            connection.close()
+        
+    def login_user(self, email, password):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
 
-def login_user(email, password):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
+        cursor.execute(
+            "SELECT user_id, name, surname, email, password_hash FROM user WHERE email = ?",
+            (email,)
+        )
+        row = cursor.fetchone()
+        connection.close()
 
-    cursor.execute(
-        "SELECT user_id, name, surname, email, password_hash FROM user WHERE email = ?",
-        (email,)
-    )
-    row = cursor.fetchone()
-    connection.close()
+        if not row:
+            return False, "User not found."
 
-    if not row:
-        return False, "User not found."
+        stored_hash = row[4]
+        if not PasswordHash.recommended().verify(password, stored_hash):
+            return False, "Incorrect password."
 
-    stored_hash = row[4]
-    if not PasswordHash.recommended().verify(password, stored_hash):
-        return False, "Incorrect password."
+        return True, {
+            "id": row[0],
+            "name": row[1],
+            "surname": row[2],
+            "email": row[3]
+        }
 
-    return True, {
-        "id": row[0],
-        "name": row[1],
-        "surname": row[2],
-        "email": row[3]
-    }
-
-
-def get_user_id_by_email(email: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute("SELECT user_id FROM user WHERE email = ?", (email,))
-    row = cursor.fetchone()
-    connection.close()
-    if row:
-        return row[0]
-    return None
-
-
-def get_user_by_id(user_id: int):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level, pp_image FROM user WHERE user_id = ?",
-        (user_id,)
-    )
-    row = cursor.fetchone()
-    connection.close()
-    if not row:
+    def get_user_id_by_email(self, email: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute("SELECT user_id FROM user WHERE email = ?", (email,))
+        row = cursor.fetchone()
+        connection.close()
+        if row:
+            return row[0]
         return None
-    return {
-        "id": row[0],
-        "name": row[1],
-        "surname": row[2],
-        "email": row[3],
-        "password_hash": row[4],
-        "native_language": row[5],
-        "interface_language": row[6],
-        "proficiency_level": row[7],
-        "pp_image": row[8]
-    }
+
+    def get_user_by_id(self, user_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level, pp_image FROM user WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "surname": row[2],
+            "email": row[3],
+            "password_hash": row[4],
+            "native_language": row[5],
+            "interface_language": row[6],
+            "proficiency_level": row[7],
+            "pp_image": row[8]
+        }
+        
+    def rechange_password(self, user_id: int, new_password: str):
+        new_password_hash = PasswordHash.recommended().hash(new_password)
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET password_hash = ? WHERE user_id = ?",
+            (new_password_hash, user_id)
+        )
+        connection.commit()
+        connection.close()
+
+    def upload_certificate(self, user_id: int, certificate: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO certificate (user_id, certificate) VALUES (?, ?)" ,
+            (user_id, certificate)
+        )
+        connection.commit()
+        connection.close()
+
+    def upload_image(self, user_id: int, image_data: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET pp_image = ? WHERE user_id = ?",
+            (image_data, user_id)
+        )
+        connection.commit()
+        connection.close()
+
+
+    def get_vocabulary_by_user(self, user_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT words FROM vocabulary WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+
+        if not row or row[0] is None:
+            return {}
+
+        try:
+            data = json.loads(row[0])
+        except json.JSONDecodeError:
+            return {}
+
+        if isinstance(data, dict):
+            return data
+
+        return {}
+
+
+    def save_vocabulary_by_user(self, user_id: int, words: dict):
+        serialized = json.dumps(words, ensure_ascii=False)
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+
+        cursor.execute(
+            "SELECT vocabulary_id FROM vocabulary WHERE user_id = ?",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+
+        if row:
+            cursor.execute(
+                "UPDATE vocabulary SET words = ? WHERE vocabulary_id = ?",
+                (serialized, row[0])
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO vocabulary (user_id, words) VALUES (?, ?)",
+                (user_id, serialized)
+            )
+
+        connection.commit()
+        connection.close()
+
+    def update_native_language(self, user_id: int, native_language: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET native_language = ? WHERE user_id = ?",
+            (native_language, user_id)
+        )
+        connection.commit()
+        connection.close()
+
+    def update_interface_language(self, user_id: int, interface_language: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET interface_language = ? WHERE user_id = ?",
+            (interface_language, user_id)
+        )
+        connection.commit()
+        connection.close()
+
+    def update_email(self, user_id: int, email: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET email = ? WHERE user_id = ?",
+            (email, user_id)
+        )
+        connection.commit()
+        connection.close()
+
+
+    def add_test(self, user_id: int, test_html: str, submitted_answers_json: str, assessed: bool,
+                    assessed_level: str, assessed_by_model: str, phoenix_run_id: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO test (user_id, test_html, submitted_answers_json, assessed, assessed_level, assessed_by_model, phoenix_run_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, test_html, submitted_answers_json, assessed, assessed_level, assessed_by_model, phoenix_run_id)
+        )
+        connection.commit()
+        connection.close()
     
-def rechange_password(user_id: int, new_password: str):
-    new_password_hash = PasswordHash.recommended().hash(new_password)
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "UPDATE user SET password_hash = ? WHERE user_id = ?",
-        (new_password_hash, user_id)
-    )
-    connection.commit()
-    connection.close()
-
-def upload_certificate(user_id: int, certificate: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "INSERT INTO certificate (user_id, certificate) VALUES (?, ?)" ,
-        (user_id, certificate)
-    )
-    connection.commit()
-    connection.close()
-
-def upload_image(user_id: int, image_data: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "UPDATE user SET pp_image = ? WHERE user_id = ?",
-        (image_data, user_id)
-    )
-    connection.commit()
-    connection.close()
-
-
-def get_vocabulary_by_user(user_id: int):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "SELECT words FROM vocabulary WHERE user_id = ?",
-        (user_id,)
-    )
-    row = cursor.fetchone()
-    connection.close()
-
-    if not row or row[0] is None:
-        return {}
-
-    try:
-        data = json.loads(row[0])
-    except json.JSONDecodeError:
-        return {}
-
-    if isinstance(data, dict):
-        return data
-
-    return {}
-
-
-def save_vocabulary_by_user(user_id: int, words: dict):
-    serialized = json.dumps(words, ensure_ascii=False)
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT vocabulary_id FROM vocabulary WHERE user_id = ?",
-        (user_id,)
-    )
-    row = cursor.fetchone()
-
-    if row:
+    def add_progress_tracking(self, user_id: int, module_id: int, course_id: int, answers_json: str, assessed: bool,
+                    assessed_score: float, assessed_by_model: str, comments_from_model: str, phoenix_run_id: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
         cursor.execute(
-            "UPDATE vocabulary SET words = ? WHERE vocabulary_id = ?",
-            (serialized, row[0])
+            "INSERT INTO progress_tracking (user_id, module_id, course_id, answers_json, assessed, assessed_score, assessed_by_model, comments_from_model, phoenix_run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, module_id, course_id, answers_json, assessed, assessed_score, assessed_by_model, comments_from_model, phoenix_run_id)
         )
-    else:
+        connection.commit()
+        connection.close()
+    
+    def add_course(self, level: str, title: str, description: str, duration_weeks: int, course_plan: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO vocabulary (user_id, words) VALUES (?, ?)",
-            (user_id, serialized)
+            "INSERT INTO course (level, title, description, duration_weeks, course_plan) VALUES (?, ?, ?, ?, ?)",
+            (level, title, description, duration_weeks, course_plan)
         )
+        connection.commit()
+        connection.close()
+    
+    def enroll_user_in_course(self, user_id: int, course_id: int, start_date: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO user_course (user_id, course_id, start_date) VALUES (?, ?, ?)",
+            (user_id, course_id, start_date)
+        )
+        connection.commit()
+        connection.close()
 
-    connection.commit()
-    connection.close()
+    def add_module(self, course_id: int, title: str, week_number: int, content_html: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO module (course_id, title, week_number, content_html) VALUES (?, ?, ?, ?)",
+            (course_id, title, week_number, content_html)
+        )
+        connection.commit()
+        connection.close()
 
-def update_native_language(user_id: int, native_language: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "UPDATE user SET native_language = ? WHERE user_id = ?",
-        (native_language, user_id)
-    )
-    connection.commit()
-    connection.close()
-
-def update_interface_language(user_id: int, interface_language: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "UPDATE user SET interface_language = ? WHERE user_id = ?",
-        (interface_language, user_id)
-    )
-    connection.commit()
-    connection.close()
-
-def update_email(user_id: int, email: str):
-    connection = sqlite3.connect('English_courses.db')
-    cursor = connection.cursor()
-    cursor.execute(
-        "UPDATE user SET email = ? WHERE user_id = ?",
-        (email, user_id)
-    )
-    connection.commit()
-    connection.close()
+    def rate_module(self, module_id: int, user_id: int, course_id: int, rating: bool, review: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO module_rating (module_id, user_id, course_id, rating, review) VALUES (?, ?, ?, ?, ?)",
+            (module_id, user_id, course_id, rating, review)
+        )
+        connection.commit()
+        connection.close()
+    

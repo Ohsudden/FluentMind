@@ -4,25 +4,15 @@ from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from phoenix_tracking import PhoenixTracking
-from database import (
-    init_db,
-    create_user,
-    login_user,
-    get_user_by_id,
-    rechange_password,
-    upload_certificate,
-    upload_image,
-    get_vocabulary_by_user,
-    save_vocabulary_by_user,
-    update_native_language,
-    update_interface_language,
-    update_email
-)
+from database import Database
 from pwdlib import PasswordHash
 import os, time, secrets
+from dotenv import load_dotenv
 
+load_dotenv()
 
-init_db()
+db = Database()
+db.init_db()
 app = FastAPI()
 
 phoenix_tracker = PhoenixTracking(app_name="FluentMind")
@@ -35,41 +25,48 @@ templates = Jinja2Templates(directory="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 @app.get("/learn", response_class=HTMLResponse)
-async def learn(request: Request):
+async def learn(request: Request, exam: str = None):
     level = request.session.get("proficiency_level")
+    
+    if exam == "current" and "exam_content" in request.session:
+        return templates.TemplateResponse(request, "level_confirmation.html", {
+            "request": request, 
+            "exam_content": request.session["exam_content"]
+        })
+
     if not level:
-        return templates.TemplateResponse("level_confirmation.html", {"request": request})
+        return templates.TemplateResponse(request, "level_confirmation.html", {"request": request})
     else:
-        return 'Good Job! Your level is already set.' # change this to a proper response later
+        return 'Good Job! Your level is already set.'
 
 
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing(request: Request):
-    return templates.TemplateResponse("pricing.html", {"request": request})
+    return templates.TemplateResponse(request, "pricing.html")
 
 @app.get("/contacts", response_class=HTMLResponse)
 async def contacts(request: Request):
-    return templates.TemplateResponse("contacts.html", {"request": request})
+    return templates.TemplateResponse(request, "contacts.html")
 
 @app.get("/registration", response_class=HTMLResponse)
 async def registration(request: Request):
     user_id = request.session.get("user_id")
     if user_id:
         return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
-    return templates.TemplateResponse("registration.html", {"request": request})
+    return templates.TemplateResponse(request, "registration.html")
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_me(request: Request):
     user_id = request.session.get("user_id")
     if not user_id:
         return RedirectResponse(url="/login", status_code=302)
-    user = get_user_by_id(user_id)
+    user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return templates.TemplateResponse("settings.html", {"request": request, "userid": user_id, "user": user})
+    return templates.TemplateResponse(request, "settings.html", {"userid": user_id, "user": user})
 
 @app.get("/settings/{userid}", response_class=HTMLResponse)
 async def settings(request: Request, userid: int):
@@ -78,10 +75,10 @@ async def settings(request: Request, userid: int):
         return RedirectResponse(url="/login", status_code=302)
     if user_id != userid:
         return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
-    user = get_user_by_id(userid)
+    user = db.get_user_by_id(userid)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return templates.TemplateResponse("settings.html", {"request": request, "userid": userid, "user": user})
+    return templates.TemplateResponse(request, "settings.html", {"userid": userid, "user": user})
 
 
 @app.get("/vocabulary", response_class=HTMLResponse)
@@ -90,11 +87,11 @@ async def vocabulary_page(request: Request):
     if not user_id:
         return RedirectResponse(url="/login", status_code=302)
 
-    user = get_user_by_id(user_id)
+    user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return templates.TemplateResponse("vocabulary.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "vocabulary.html", {"user": user})
 
 @app.post("/api/register")
 async def register_user(
@@ -103,7 +100,7 @@ async def register_user(
     email: str = Form(...),
     password: str = Form(...)
 ):
-    success, message = create_user(name, surname, email, password)
+    success, message = db.create_user(name, surname, email, password)
     
     if success:
         return JSONResponse(status_code=200, content={"success": True, "message": message})
@@ -115,7 +112,7 @@ async def login(request: Request):
     user_id = request.session.get("user_id")
     if user_id:
         return RedirectResponse(url=f"/settings/{user_id}", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 @app.post("/api/login")
 async def api_login(
@@ -123,7 +120,8 @@ async def api_login(
     email: str = Form(...),
     password: str = Form(...)
 ):
-    success, user_data = login_user(email, password)
+    success, user_data = db.login_user(email, password)
+
 
     if not success:
         return JSONResponse(status_code=401, content={"success": False, "message": user_data})
@@ -155,7 +153,7 @@ async def api_get_vocabulary(request: Request):
     except HTTPException as exc:
         return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
 
-    words = get_vocabulary_by_user(user_id)
+    words = db.get_vocabulary_by_user(user_id)
     return JSONResponse(status_code=200, content={"success": True, "words": words})
 
 
@@ -173,9 +171,9 @@ async def api_add_word(request: Request):
     if not word or not definition:
         return JSONResponse(status_code=400, content={"success": False, "message": "Word and definition are required."})
 
-    words = get_vocabulary_by_user(user_id)
+    words = db.get_vocabulary_by_user(user_id)
     words[word] = definition
-    save_vocabulary_by_user(user_id, words)
+    db.save_vocabulary_by_user(user_id, words)
 
     return JSONResponse(status_code=200, content={"success": True, "words": words, "message": "Word saved."})
 
@@ -193,13 +191,13 @@ async def api_delete_word(request: Request):
     if not word:
         return JSONResponse(status_code=400, content={"success": False, "message": "Word is required."})
 
-    words = get_vocabulary_by_user(user_id)
+    words = db.get_vocabulary_by_user(user_id)
 
     if word not in words:
         return JSONResponse(status_code=404, content={"success": False, "message": "Word not found."})
 
     del words[word]
-    save_vocabulary_by_user(user_id, words)
+    db.save_vocabulary_by_user(user_id, words)
 
     return JSONResponse(status_code=200, content={"success": True, "words": words, "message": "Word deleted."})
 
@@ -212,7 +210,7 @@ async def change_password(request: Request,
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
 
-    user = get_user_by_id(user_id)
+    user = db.get_user_by_id(user_id)
     if not user:
         return JSONResponse(status_code=404, content={"success": False, "message": "User not found."})
 
@@ -220,7 +218,7 @@ async def change_password(request: Request,
     if not PasswordHash.recommended().verify(old_password, stored_hash):
         return JSONResponse(status_code=400, content={"success": False, "message": "Incorrect old password."})
 
-    rechange_password(user_id, new_password)
+    db.rechange_password(user_id, new_password)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Password changed successfully."})
 
@@ -247,7 +245,7 @@ async def cloud_certificate(request: Request, file: UploadFile = File(...)):
         f.write(contents)
 
     rel_path = f"certificates/{safe_name}"
-    upload_certificate(user_id, rel_path)
+    db.upload_certificate(user_id, rel_path)
 
     static_url = f"/static/{rel_path}"
     return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "url": static_url, "message": "Certificate uploaded successfully."})
@@ -275,7 +273,7 @@ async def upload_image_endpoint(request: Request, file: UploadFile = File(...)):
         f.write(contents)
 
     rel_path = f"profile_images/{safe_name}"
-    upload_image(user_id, rel_path)
+    db.upload_image(user_id, rel_path)
 
     static_url = f"/static/profile_images/{safe_name}"
     return JSONResponse(status_code=200, content={"success": True, "path": rel_path, "url": static_url, "message": "Profile image uploaded successfully."})
@@ -316,7 +314,7 @@ async def native_language_changes(request: Request):
     if not native_language:
         return JSONResponse(status_code=400, content={"success": False, "message": "Native language is required."})
 
-    update_native_language(user_id, native_language)
+    db.update_native_language(user_id, native_language)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Native language updated successfully."})
 
@@ -334,7 +332,7 @@ async def interface_language_changes(request: Request):
     if not interface_language:
         return JSONResponse(status_code=400, content={"success": False, "message": "Interface language is required."})
 
-    update_interface_language(user_id, interface_language)
+    db.update_interface_language(user_id, interface_language)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Interface language updated successfully."})
 
@@ -349,9 +347,10 @@ async def email_changes(request: Request):
     if not email:
         return JSONResponse(status_code=400, content={"success": False, "message": "Email is required."})
 
-    update_email(user_id, email)
+    db.update_email(user_id, email)
 
     return JSONResponse(status_code=200, content={"success": True, "message": "Email updated successfully."})
+
 
 @app.get("/api/generate-exam")
 async def generate_exam(request: Request):
@@ -359,15 +358,20 @@ async def generate_exam(request: Request):
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
 
-    exam = phoenix_tracker.generate(
-        temperature=0.7,
-        top_p=0.9,
-        max_tokens=2000,
-        model="gemini-2.5-pro",
-        prompt_context="You are an expert English exam creator. Generate a 5-question multiple-choice "
-    )
+    try:
+        generation_result = phoenix_tracker.generate(
+            temperature=0.7,
+            top_p=0.9,
+            max_tokens=2000,
+            model="gemini-2.5-flash-preview-09-2025",
+            prompt_context="You are an expert English exam creator. Generate a 20-question multiple-choice "
+        )
+        request.session["exam_content"] = generation_result["content"]
+        return JSONResponse(status_code=200, content={"success": True, "exam": {"id": "current"}})
+    except Exception as e:
+        print(f"Error generating exam: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
-    return JSONResponse(status_code=200, content={"success": True, "exam": exam})
 @app.post("/api/submit-exam")
 async def submit_exam(request: Request):
     user_id = request.session.get("user_id")
@@ -379,14 +383,28 @@ async def submit_exam(request: Request):
 
     if not exam_answers:
         return JSONResponse(status_code=400, content={"success": False, "message": "Exam answers are required."})
-
-    feedback = phoenix_tracker.generate(
-        exam_answers,
-        temperature=0.7,
-        top_p=0.9,
+    english_test_check_propmt = f"""You are an expert English tutor. Provide an English level based on the student's answers to the exam below. 
+    Write only one of CEFR levels (A1, A2, B1, B2, C1, C2) as the response.
+    Here is the exam and the student's answers:
+    {exam_answers}"""
+    feedback_result = phoenix_tracker.generate(
+        temperature=0.2,
+        top_p=0.5,
         max_tokens=2000,
-        model="gemini-2.5-pro",
-        context_prompt="You are an expert English tutor. Provide detailed feedback on the submitted exam answers."
+        model="gemini-2.5-flash-preview-09-2025",
+        prompt_context=english_test_check_propmt
+    )
+    feedback = feedback_result["content"]
+    run_id = feedback_result["run_id"]
+
+    db.add_test(
+        user_id=user_id,
+        test_html=request.session.get("exam_content", ""),
+        submitted_answers_json=exam_answers,
+        assessed=True,
+        assessed_level=feedback,
+        assessed_by_model="gemini-2.5-flash-preview-09-2025",
+        phoenix_run_id=run_id
     )
 
     return JSONResponse(status_code=200, content={"success": True, "feedback": feedback})
