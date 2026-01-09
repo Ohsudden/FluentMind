@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from phoenix_tracking import PhoenixTracking
 from database import Database
 from pwdlib import PasswordHash
-import os, time, secrets
+import os, time, secrets, ast, json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,7 +30,16 @@ async def root(request: Request):
 @app.get("/learn", response_class=HTMLResponse)
 async def learn(request: Request, exam: str = None):
     level = request.session.get("proficiency_level")
-    
+    user_id = request.session.get("user_id")
+
+    if not level and user_id:
+        user = db.get_user_by_id(user_id)
+        if user and user.get("proficiency_level"):
+             level = user["proficiency_level"]
+             request.session["proficiency_level"] = level
+
+    if level:
+        return templates.TemplateResponse(request, "learning_dashboard.html", {"request": request, "level": level})
     if exam and exam != "current":
         try:
             test_id = int(exam)
@@ -142,6 +151,11 @@ async def api_login(
 
     request.session["user_email"] = user_data["email"]
     request.session["user_id"] = user_data["id"]
+
+    full_user = db.get_user_by_id(user_data["id"])
+    if full_user:
+        request.session["proficiency_level"] = full_user.get("proficiency_level")
+
     return RedirectResponse(url=f"/settings/{user_data['id']}", status_code=302)
 
 
@@ -161,6 +175,16 @@ def _ensure_authenticated(request: Request):
 
 
 
+
+@app.get("/api/vocabulary")
+async def api_get_vocabulary(request: Request):
+    try:
+        user_id = _ensure_authenticated(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"success": False, "message": exc.detail})
+
+    words = db.get_vocabulary_by_user(user_id)
+    return JSONResponse(status_code=200, content={"success": True, "words": words})
 
 @app.post("/api/vocabulary")
 async def api_add_word(request: Request):
@@ -465,7 +489,7 @@ async def submit_exam(request: Request):
     db.update_english_level(user_id, feedback)
     return JSONResponse(status_code=200, content={"success": True, "feedback": feedback})
 
-@app.get("/api/generate-course")
+@app.post("/api/generate-course")
 async def generate_course(request: Request, level: str):
     user_id = request.session.get("user_id")
     if not user_id:
@@ -491,32 +515,124 @@ async def generate_course(request: Request, level: str):
             ]
         }}
         Ensure the course is engaging and covers all essential skills: reading, writing, speaking.
-        JSON ONLY.""", name="English Course", type="course", collection_name="CefrCourseProfile")
-    db.add_course(level = db.get_user_by_id(user_id=user_id), title = response.content['title'], description = response.content['description'], 
-                  duration_weeks = response.content['duration_weeks'], course_plan = response.content['course_plan'])
-    return JSONResponse(status_code=200, content={"success": True, "course": response.content})
+        JSON ONLY.""", name="English Course", type="course", collection_name="CefrGrammarProfile")
+    
+    course_content = response["content"]
+    if isinstance(course_content, str):
+        import json
+        try:
+            if course_content.strip().startswith("```"):
+                course_content = course_content.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
+            course_content = json.loads(course_content)
+        except:
+            print("Error parsing course content JSON")
+            pass
+
+    course_id = db.add_course(level=level, title=course_content.get('title'), description=course_content.get('description'), 
+                  duration_weeks=course_content.get('duration_weeks'), course_plan=str(course_content.get('course_plan')))
+
+    start_date = time.strftime("%Y-%m-%d")
+    db.enroll_user_in_course(user_id=user_id, course_id=course_id, start_date=start_date)
+
+    return JSONResponse(status_code=200, content={"success": True, "course": course_content})
+
+@app.get("/api/get_courses")
+async def get_courses(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    courses = db.get_user_courses(user_id)
+    return JSONResponse(status_code=200, content={"success": True, "courses": courses})
 
 @app.get("/api/generate-module")
 async def generate_module(request: Request, course_id: int, module_number: int):
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    course =db.get_course_by_id(course_id)
+    course_plan = course.get("course_plan", "")
     response = phoenix_tracker.generate(
         temperature=0.7,
         top_p=0.9,
         max_tokens=2000,
         model="gemini-2.5-flash-preview-09-2025",
-        prompt_context=f"""You are an expert English lesson planner. Create a detailed lesson plan for module {module_number} of the course with ID {course_id}. 
-        The lesson plan should include objectives, key topics, activities, and assessment methods.
-        IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse(). The JSON structure MUST be:
-        {{
-            "module": {module_number},
-            "objectives": ["Objective 1", "Objective 2"],
-            "topics": ["Topic 1", "Topic 2"],
-            "activities": ["Activity 1", "Activity 2"],
-            "assessment_methods": ["Method 1", "Method 2"]
-        }}
-        Ensure the lesson is engaging and aligns with the overall course goals.
-        JSON ONLY.""", name="English Lesson Plan", type="lesson_plan", collection_name="CefrCourseProfile")
-    db.add_module(course_id = course_id, module_number = module_number, module_content = response.content)
-    return JSONResponse(status_code=200, content={"success": True, "module": response.content})
+        prompt_context=f"""You are an expert English course module creator. Create a detailed module {module_number} for the following course plan:
+        {course_plan}
+        IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. In JSON format, provide:
+        HTML content for module {module_number} including lessons, exercises, and resources. The output must be parseable by JSON.parse(). Use consistent formatting and html classes for easy rendering. 
+        Each exercise should have clear instructions and answer sections.
+        JSON ONLY.""", name="English Course Module", type="course_module", collection_name="CefrGrammarProfile")
+    module_content = response["content"]
+    if isinstance(module_content, str):
+        import json
+        try:
+            if module_content.strip().startswith("```"):
+                module_content = module_content.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
+            module_content = json.loads(module_content)
+        except:
+            print("Error parsing module content JSON")
+            pass
+        db.add_module(course_id=course_id, title=f"Module {module_number}", week_number=module_number, content_html=str(module_content))
+    return JSONResponse(status_code=200, content={"success": True, "module": module_content})
+
+@app.get("/learn/course{course_id}")
+async def learn_course(request: Request, course_id: int):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=302)
+
+    course = db.get_course_by_id(course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    modules = db.get_modules_by_course(course_id)
+
+    return templates.TemplateResponse(request, "course_learning.html", {
+        "request": request,
+        "course": course,
+        "modules": modules
+    })
+
+@app.get("/learn/course{course_id}/module{module_number}")
+async def learn_course_module(request: Request, course_id: int, module_number: int):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=302)
+
+    course = db.get_course_by_id(course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+
+
+    return templates.TemplateResponse(request, "course_module.html", {
+        "request": request,
+        "course": course
+    })
+
+@app.post("/api/get-modules")
+async def api_get_modules(request: Request, course_id: int):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    modules = db.get_modules_by_course(course_id)
+    
+    if not modules:
+        course = db.get_course_by_id(course_id)
+        if course and course.get("course_plan"):
+            try:
+                plan_list = ast.literal_eval(course["course_plan"])
+                if isinstance(plan_list, list):
+                    modules = []
+                    for item in plan_list:
+                         modules.append({
+                             "module_id": f"plan_{item.get('module', 0)}",
+                             "course_id": course_id,
+                             "title": item.get('title', f"Module {item.get('module', '?')}"),
+                             "week_number": item.get('module'),
+                             "content_html": json.dumps(item)
+                         })
+            except Exception as e:
+                print(f"Error parsing course plan fallback: {e}")
+
+    return JSONResponse(status_code=200, content={"success": True, "modules": modules})

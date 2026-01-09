@@ -7,6 +7,7 @@
   --danger: #d14343;
 }
 
+
 body.vocabulary-page {
   background: #f7f8fc;
   color: var(--text-dark);
@@ -37,10 +38,9 @@ body.vocabulary-page {
   gap: 16px;
   background: #fafbff;
   border: 1px solid var(--border-color);
-  border-radius: 20px;
-  margin-left: 24px;
-  margin-bottom: 29px;
-  margin-top: 28px;
+  border-radius: 10px;
+  margin: 28px 0;
+  padding: 24px;
 }
 
 .vocabulary-form label {
@@ -150,7 +150,9 @@ body.vocabulary-page {
   color: var(--text-muted);
   white-space: pre-wrap;
 }
-
+.wrap.settings-wrapper {
+  width: 100%;
+}
 .word-block button {
   border: 1px solid rgba(209, 67, 67, 0.2);
   background: rgba(209, 67, 67, 0.08);

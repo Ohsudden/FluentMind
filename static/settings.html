@@ -38,7 +38,7 @@
 				</button>
 				<button type="button">
 					<img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-					<span class="settings-nav__label"><a href=''>Previous lessons</a></span>
+					<span class="settings-nav__label"><a href='#'>Course Content</a></span>
 				</button>
 				<button type="button" class="active">
 					<img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
@@ -72,7 +72,7 @@
 					</div>
 					<div class="row">
 						<label for="settings-proficiency">Proficiency level</label>
-						<input id="settings-proficiency" type="text" name="proficiency" value="{{ user.proficiency if user else '' }}" placeholder="Your Proficiency Level" disabled/>
+						<input id="settings-proficiency" type="text" name="proficiency" value="{{ user.proficiency_level if user else '' }}" placeholder="Your Proficiency Level" disabled/>
 					</div>
 					<div class="row">
 						<label for="settings-password">Password</label>

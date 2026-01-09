@@ -6,8 +6,13 @@
   <title>Your Vocabulary – FluentMind</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
-  <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
+<style>
+  .vocabulary-page .wrap.settings-wrapper {
+        max-width: 95% !important;
+    }
+  </style>
 </head>
 <body class="vocabulary-page">
   <header>
@@ -39,7 +44,7 @@
         </button>
         <button type="button">
           <img src="{{ url_for('static', path='img/settings/nav-previous-lessons.svg') }}" width="22" height="22" alt="" aria-hidden="true" />
-          <span class="settings-nav__label"><a href=''>Previous lessons</a></span>
+					<span class="settings-nav__label"><a href='#'>Course Content</a></span>
         </button>
         <button type="button">
           <img class="settings-nav__icon" src="{{ url_for('static', path='img/settings/nav-settings.svg') }}" width="22" height="22" alt="" aria-hidden="true" />

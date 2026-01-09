@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/level-confirmation.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}" />
 
 </head>
 <body class="level-confirmation-page">
@@ -153,7 +154,7 @@
               <input type="file" id="certificate-file" name="file" accept=".pdf,.jpg,.jpeg,.png" />
               <span>Choose a file</span>
             </label>
-            <button type="submit">Upload</button>
+            <button class='enroll-btn' type="submit">Upload</button>
           </form>
           <div id="upload-status" class="status" aria-live="polite"></div>
         </div>`;

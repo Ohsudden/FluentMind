@@ -298,7 +298,7 @@ class PhoenixTracking:
             
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))
-                span.set_attribute("error.type", type(e).__name__)
+                span.set_attribute("error.type", e.__class__.__name__)
                 span.set_attribute("error.message", str(e))
                 span.add_event(f"{type.capitalize()} generation failed")
                 raise

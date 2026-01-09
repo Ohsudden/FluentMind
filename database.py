@@ -328,8 +328,10 @@ class Database:
             "INSERT INTO course (level, title, description, duration_weeks, course_plan) VALUES (?, ?, ?, ?, ?)",
             (level, title, description, duration_weeks, course_plan)
         )
+        course_id = cursor.lastrowid
         connection.commit()
         connection.close()
+        return course_id
     
     def enroll_user_in_course(self, user_id: int, course_id: int, start_date: str):
         connection = sqlite3.connect(self.db_name)
@@ -410,3 +412,79 @@ class Database:
         )
         connection.commit()
         connection.close()
+    
+    def get_user_courses(self, user_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            '''
+            SELECT c.course_id, c.level, c.title, c.description, c.duration_weeks, c.course_plan
+            FROM course c
+            JOIN user_course uc ON c.course_id = uc.course_id
+            WHERE uc.user_id = ?
+            ''',
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        connection.close()
+        courses = []
+        for row in rows:
+            courses.append({
+                "course_id": row[0],
+                "level": row[1],
+                "title": row[2],
+                "description": row[3],
+                "duration_weeks": row[4],
+                "course_plan": row[5]
+            })
+        return courses
+    
+    def add_user_to_course(self, user_id: int, course_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO user_course (user_id, course_id, start_date) VALUES (?, ?, ?)",
+            (user_id, course_id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
+        connection.commit()
+        connection.close()
+
+    def get_course_by_id(self, course_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT course_id, level, title, description, duration_weeks, course_plan FROM course WHERE course_id = ?",
+            (course_id,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        if not row:
+            return None
+        return {
+            "course_id": row[0],
+            "level": row[1],
+            "title": row[2],
+            "description": row[3],
+            "duration_weeks": row[4],
+            "course_plan": row[5]
+        }
+    def get_modules_by_course(self, course_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT module_id, course_id, title, week_number, content_html FROM module WHERE course_id = ? ORDER BY week_number",
+            (course_id,)
+        )
+        rows = cursor.fetchall()
+        connection.close()
+        modules = []
+        for row in rows:
+            modules.append({
+                "module_id": row[0],
+                "course_id": row[1],
+                "title": row[2],
+                "week_number": row[3],
+                "content_html": row[4]
+            })
+        return modules
+    

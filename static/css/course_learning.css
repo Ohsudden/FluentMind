@@ -1,0 +1,118 @@
+ .vocabulary-page main.wrap {
+        max-width: 100%;
+    }
+
+    .course-content-wrapper {
+        padding-top: 40px;
+        padding-bottom: 80px;
+        width: 100%;
+    }
+    
+    .course-content-wrapper h1 {
+        font-family: Montserrat, sans-serif;
+        font-size: 32px;
+        margin-bottom: 30px;
+        color: #1f1f26;
+        font-weight: 700;
+    }
+
+    #modules-container {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .module-card {
+        background: #fff;
+        border-radius: 24px;
+        padding: 40px;
+        width: 60%;
+        align-items: center;
+        margin: auto;
+        box-shadow: 0 10px 40px rgba(23,16,34, 0.05); 
+        border: 1px solid rgba(234, 234, 234, 1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .module-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 50px rgba(23,16,34, 0.1);
+    }
+
+    .module-card h2 {
+        font-family: Montserrat, sans-serif;
+        font-size: 24px;
+        color: #4d3a93;
+        margin-bottom: 24px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 12px;
+    }
+
+    .module-card h3 {
+        font-family: Inter, sans-serif;
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #7d7d7d;
+        margin-top: 24px;
+        margin-bottom: 12px;
+        font-weight: 700;
+    }
+
+    .module-card ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .module-card ul li {
+        position: relative;
+        padding-left: 24px;
+        margin-bottom: 8px;
+        font-size: 16px;
+        color: #333;
+        line-height: 1.5;
+    }
+
+    .module-card ul li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        background: #6c5ce7;
+        border-radius: 50%;
+    }
+
+    .module-actions {
+        margin-top: 32px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .module-actions .btn {
+        display: inline-block;
+        background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+        color: white;
+        padding: 14px 28px;
+        border-radius: 50px; 
+        font-weight: 600;
+        font-size: 15px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .module-actions .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+    }
+
+    .module-actions .btn:disabled {
+        background: #ccc;
+        box-shadow: none;
+        cursor: not-allowed;
+        transform: none;
+    }
