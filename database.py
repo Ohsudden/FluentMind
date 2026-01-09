@@ -487,4 +487,15 @@ class Database:
                 "content_html": row[4]
             })
         return modules
-    
+    def get_module_content(self, module_id: int, course_id: int):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT content_html FROM module WHERE module_id = ? AND course_id = ?",
+            (module_id, course_id)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        if not row:
+            return None
+        return row[0]

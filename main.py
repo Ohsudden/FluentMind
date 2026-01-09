@@ -549,6 +549,9 @@ async def generate_module(request: Request, course_id: int, module_number: int):
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    content = db.get_module_content(module_number, course_id)
+    if content:
+        return JSONResponse(status_code=200, content={"success": True, "module": content})
     course =db.get_course_by_id(course_id)
     course_plan = course.get("course_plan", "")
     response = phoenix_tracker.generate(
@@ -602,12 +605,66 @@ async def learn_course_module(request: Request, course_id: int, module_number: i
     course = db.get_course_by_id(course_id)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    
+    modules = db.get_modules_by_course(course_id)
+    current_module = next((m for m in modules if m["week_number"] == module_number), None)
+    
+    if not current_module:
+         pass
 
+    if current_module and current_module.get("content_html"):
+        try:
+            import ast
+            content_data = None
+            raw_content = current_module["content_html"]
+            
+            try:
+                content_data = json.loads(raw_content)
+            except:
+                try:
+                    cleaned = raw_content.strip()
+                    if cleaned.startswith('{') and cleaned.endswith('"'):
+                        cleaned = cleaned[:-1]
+                    content_data = json.loads(cleaned)
+                except:
+                    try:
+                        content_data = ast.literal_eval(raw_content)
+                    except:
+                        pass
+            
+            if isinstance(content_data, dict):
 
+                 current_module["rendered_html"] = ""
+                 if "html" in content_data:
+                     current_module["rendered_html"] += content_data["html"]
+                 elif "content" in content_data:
+                      current_module["rendered_html"] += str(content_data["content"])
+                 else:
+
+                     for k, v in content_data.items():
+                         if isinstance(v, list):
+                             current_module["rendered_html"] += f"<h3>{k.capitalize().replace('_', ' ')}</h3><ul>"
+                             for item in v:
+                                 current_module["rendered_html"] += f"<li>{item}</li>"
+                             current_module["rendered_html"] += "</ul>"
+                         elif isinstance(v, str):
+                             if v.strip().startswith("<"):
+                                  current_module["rendered_html"] += v
+                             else:
+                                  current_module["rendered_html"] += f"<h3>{k.capitalize()}</h3><p>{v}</p>"
+
+            elif isinstance(content_data, str):
+                 current_module["rendered_html"] = content_data
+
+        except Exception as e:
+            print(f"Error preparing module content: {e}")
+            current_module["rendered_html"] = "Error loading content."
 
     return templates.TemplateResponse(request, "course_module.html", {
         "request": request,
-        "course": course
+        "course": course,
+        "module": current_module,
+        "module_number": module_number
     })
 
 @app.post("/api/get-modules")
@@ -615,24 +672,51 @@ async def api_get_modules(request: Request, course_id: int):
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
-    modules = db.get_modules_by_course(course_id)
+        
+    db_modules = db.get_modules_by_course(course_id)
+    created_map = {m['week_number']: m for m in db_modules}
     
-    if not modules:
-        course = db.get_course_by_id(course_id)
-        if course and course.get("course_plan"):
-            try:
-                plan_list = ast.literal_eval(course["course_plan"])
-                if isinstance(plan_list, list):
-                    modules = []
-                    for item in plan_list:
-                         modules.append({
-                             "module_id": f"plan_{item.get('module', 0)}",
-                             "course_id": course_id,
-                             "title": item.get('title', f"Module {item.get('module', '?')}"),
-                             "week_number": item.get('module'),
-                             "content_html": json.dumps(item)
-                         })
-            except Exception as e:
-                print(f"Error parsing course plan fallback: {e}")
+    final_modules = []
+    
+    course = db.get_course_by_id(course_id)
+    if course and course.get("course_plan"):
+        try:
+            plan_str = course["course_plan"]
+            if isinstance(plan_str, str):
+                try:
+                    plan_list = ast.literal_eval(plan_str)
+                except:
+                    plan_list = json.loads(plan_str)
+            else:
+                plan_list = plan_str
 
-    return JSONResponse(status_code=200, content={"success": True, "modules": modules})
+            if isinstance(plan_list, list):
+                for item in plan_list:
+                    week_num = item.get('module')
+                    
+                    if week_num in created_map:
+                        db_mod = created_map[week_num]
+                        final_modules.append({
+                             "module_id": db_mod["module_id"],
+                             "course_id": course_id,
+                             "title": db_mod["title"],
+                             "week_number": week_num,
+                             "content_html": json.dumps(item) 
+                        })
+                    else:
+                        final_modules.append({
+                             "module_id": f"plan_{week_num}",
+                             "course_id": course_id,
+                             "title": item.get('title', f"Module {week_num}"),
+                             "week_number": week_num,
+                             "content_html": json.dumps(item)
+                        })
+            else:
+                final_modules = db_modules
+        except Exception as e:
+            print(f"Error parsing course plan in mix: {e}")
+            final_modules = db_modules
+    else:
+        final_modules = db_modules
+
+    return JSONResponse(status_code=200, content={"success": True, "modules": final_modules})

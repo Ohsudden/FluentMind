@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/course_learning.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/course_module.css') }}" />
 </head>
 
 <body class="vocabulary-page">
@@ -50,96 +51,24 @@
       </nav>
     </aside>
     <div class="course-content-wrapper">
-      <h1>Course Content</h1>
-      <div id="modules-container">
-          
+      <div id="module-content" class="module-content">
+          {% if module and module.rendered_html %}
+              {{ module.rendered_html | safe }}
+          {% else %}
+              <div class="empty-state">
+                  <h2>Content not found</h2>
+                  <p>It seems this module hasn't been generated yet or is loading incorrectly.</p>
+                  <a href="/learn/course{{ course.course_id }}" class="return-link">&larr; Back to Course Plan</a>
+              </div>
+          {% endif %}
       </div>
     </div>
   </main>
 
-  <script>
-    const course_id = {{ course.course_id }};
-    
-    async function generateModule(moduleNumber, buttonElement) {
-        if (buttonElement.disabled) return;
-        
-        buttonElement.disabled = true;
-        buttonElement.innerText = "Generating...";
-        
-        try {
-            const response = await fetch(`/api/generate-module?course_id=${course_id}&module_number=${moduleNumber}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                window.location.href = `/learn/course${course_id}/module${moduleNumber}`;
-            } else {
-                alert("Failed to generate module: " + (data.message || "Unknown error"));
-                buttonElement.disabled = false;
-                buttonElement.innerText = "Generate Content";
-            }
-        } catch (error) {
-            console.error(error);
-            alert("An error occurred.");
-            buttonElement.disabled = false;
-            buttonElement.innerText = "Generate Content";
-        }
-    }
+  <!-- Styles moved to static/css/course_module.css -->
 
-    async function getModules() {
-        const container = document.getElementById('modules-container');
-        container.innerHTML = ''; 
-
-        const response = await fetch(`/api/get-modules?course_id=${course_id}`, {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json'
-            }
-        });
-        const data = await response.json();
-        
-        if (data.success && data.modules) {
-          data.modules.forEach(module => {
-              const moduleDiv = document.createElement('div');
-              moduleDiv.className = 'module-card';
-              
-              let contentObj = {};
-              try {
-                  if (module.content_html) {
-                      const parsed = JSON.parse(module.content_html);
-                      if (parsed && typeof parsed === 'object') {
-                          contentObj = parsed;
-                      }
-                  }
-              } catch (e) {
-                  console.error('Failed to parse content_html', e);
-              }
-
-              let descriptionHtml = '';
-              if (contentObj.topics) {
-                  descriptionHtml += `<h3>Topics</h3><ul>${contentObj.topics.map(t => `<li>${t}</li>`).join('')}</ul>`;
-              }
-              if (contentObj.objectives) {
-                  descriptionHtml += `<h3>Objectives</h3><ul>${contentObj.objectives.map(o => `<li>${o}</li>`).join('')}</ul>`;
-              }
-
-              let actionHtml = '';
-              const isVirtual = String(module.module_id).startsWith('plan_');
-              
-              if (isVirtual) {
-                 actionHtml = `<button class="btn" onclick="generateModule(${module.week_number}, this)">Generate Content</button>`;
-              } else {
-                 actionHtml = `<a class="btn" href="/learn/course${module.course_id}/module${module.week_number}">Start Module</a>`;
-              }
-
-              moduleDiv.innerHTML = `<h2>${module.title}</h2>
-                                     <div>${descriptionHtml}</div>
-                                     <div class="module-actions">${actionHtml}</div>`;
-              container.appendChild(moduleDiv);
-          });
-        }
-    }
-    addEventListener('DOMContentLoaded', getModules);
-  </script>
+</body>
+</html>
   <footer>
     <div class="wrap">
       <div class="foot-top">
