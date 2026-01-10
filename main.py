@@ -8,6 +8,8 @@ from database import Database
 from pwdlib import PasswordHash
 import os, time, secrets, ast, json
 from dotenv import load_dotenv
+from phoenix.client import Client
+
 
 load_dotenv()
 
@@ -389,11 +391,11 @@ async def generate_exam(request: Request):
 
     try:
         generation_result = phoenix_tracker.generate(
-            temperature=0.7,
+            temperature=1.0,
             top_p=0.9,
             max_tokens=2000,
             model="gemini-2.5-flash-preview-09-2025",
-            prompt_context="""You are an expert English exam creator. Generate a 20-question multiple-choice English placement test.
+            prompt_context="""You are an expert English exam creator. Generate a 30-question multiple-choice English placement test.
             
             IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse().
             
@@ -521,12 +523,23 @@ async def generate_course(request: Request, level: str):
     if isinstance(course_content, str):
         import json
         try:
-            if course_content.strip().startswith("```"):
-                course_content = course_content.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
-            course_content = json.loads(course_content)
-        except:
-            print("Error parsing course content JSON")
-            pass
+            to_parse = course_content.strip()
+            if to_parse.startswith("```"):
+                # Remove first line
+                parts = to_parse.split("\n", 1)
+                if len(parts) > 1:
+                    to_parse = parts[1]
+                # Remove last line if it is just ```
+                to_parse = to_parse.strip()
+                if to_parse.endswith("```"):
+                     to_parse = to_parse[:-3]
+            course_content = json.loads(to_parse)
+        except Exception as e:
+            print(f"Error parsing course content JSON: {e}")
+            return JSONResponse(status_code=500, content={"success": False, "message": "Failed to parse course content from LLM."})
+
+    if not isinstance(course_content, dict):
+         return JSONResponse(status_code=500, content={"success": False, "message": "Course content is not a valid dictionary."})
 
     course_id = db.add_course(level=level, title=course_content.get('title'), description=course_content.get('description'), 
                   duration_weeks=course_content.get('duration_weeks'), course_plan=str(course_content.get('course_plan')))
@@ -564,6 +577,12 @@ async def generate_module(request: Request, course_id: int, module_number: int):
         IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. In JSON format, provide:
         HTML content for module {module_number} including lessons, exercises, and resources. The output must be parseable by JSON.parse(). Use consistent formatting and html classes for easy rendering. 
         Each exercise should have clear instructions and answer sections.
+
+        For exercises requiring user input, use the following HTML structure and classes:
+        - For text inputs: use <input type="text" class="exercise-input" placeholder="...">
+        - For multiple choice/radio buttons: wrap each option in a label with class "exercise-radio-label". Inside the label, put the <input type="radio" class="exercise-radio-input" name="group_name"> first, then the text. Wrap the group of radio buttons in a div with class "exercise-radio-group".
+        - Wrap each exercise in a div with class "exercise-box".
+
         JSON ONLY.""", name="English Course Module", type="course_module", collection_name="CefrGrammarProfile")
     module_content = response["content"]
     if isinstance(module_content, str):
@@ -720,3 +739,162 @@ async def api_get_modules(request: Request, course_id: int):
         final_modules = db_modules
 
     return JSONResponse(status_code=200, content={"success": True, "modules": final_modules})
+
+# @app.post("/v1/span_annotations")
+# async def span_annotations(request: Request):
+#     payload = await request.json()
+#     span_id = payload.get("span_id")
+#     annotations = payload.get("annotations", {})
+    
+#     try:
+#         if span_id:
+#             try:
+#                 client = Client()
+#                 client.add_span_annotations(
+#                     annotation_name="user feedback",
+#                     annotator_kind="HUMAN",
+#                     span_id=span_id,
+#                     label=annotations.get("review"),
+#                     score=annotations.get("score"),
+#                 )
+#             except Exception as e:
+#                 print(f"Phoenix annotation failed (ignoring): {e}")
+
+#         db.assess_module_user(
+#             user_id=request.session.get("user_id"),
+#             module_id=annotations.get("module_id"),
+#             course_id=annotations.get("course_id"),
+#             rating=annotations.get("score"),
+#             review=annotations.get("review"),
+#         )
+#         return JSONResponse(status_code=200, content={"success": True, "message": "Feedback submitted."})
+#     except Exception as e:
+#         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+
+@app.post("/api/submit-module-progress")
+async def submit_module_progress(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Invalid JSON."})
+
+    if "annotations" in payload:
+        annotations = payload.get("annotations", {})
+        span_id = payload.get("span_id")
+        
+        try:
+            if span_id:
+                try:
+                    client = Client()
+                    client.add_span_annotations(
+                        annotation_name="user feedback",
+                        annotator_kind="HUMAN",
+                        span_id=span_id,
+                        label=annotations.get("review"),
+                        score=annotations.get("score"),
+                    )
+                except Exception as e:
+                    print(f"Phoenix annotation failed (ignoring): {e}")
+
+            db.assess_module_user(
+                user_id=user_id,
+                module_id=annotations.get("module_id"),
+                course_id=annotations.get("course_id"),
+                rating=annotations.get("score"),
+                review=annotations.get("review"),
+            )
+            return JSONResponse(status_code=200, content={"success": True, "message": "Feedback submitted."})
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
+
+    module_id = payload.get("module_id")
+    course_id = payload.get("course_id")
+    answers = payload.get("answers")
+
+    if not module_id or not course_id:
+         return JSONResponse(status_code=400, content={"success": False, "message": "Missing module_id or course_id."})
+
+    module_content_html = db.get_module_content(module_id, course_id)
+    
+    context_str = module_content_html if module_content_html else "Content not available from DB."
+    answer_str = json.dumps(answers)
+
+    prompt = f"""You are an expert English tutor. Grade the student's progress on the following module exercises.
+    
+    Module Content (HTML):
+    {context_str}
+    
+    Student Answers:
+    {answer_str}
+    
+    Provide:
+    1. A score between 0 and 100.
+    2. Constructive feedback/comments.
+    
+    IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text or markdown.
+    Structure:
+    {{
+        "score": 85.5,
+        "comments": "Good job! You missed..."
+    }}
+    JSON ONLY.
+    """
+
+    try:
+        generation_result = phoenix_tracker.generate(
+            temperature=0.0,
+            top_p=1.0,
+            max_tokens=1000,
+            model="gemini-2.5-flash-preview-09-2025",
+            prompt_context=prompt,
+            name="Module Grading",
+            type="grading",
+            collection_name="CefrGrammarProfile"
+        )
+        
+        result_content = generation_result["content"]
+        run_id = generation_result["run_id"]
+        
+        assessed_score = 0.0
+        comments = "No comments."
+        
+        try:
+            import json
+            cleaned = result_content.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("\n", 1)[1].rsplit("\n", 1)[0]
+            if cleaned.startswith("json"):
+                 cleaned = cleaned[4:]
+            
+            data = json.loads(cleaned)
+            assessed_score = float(data.get("score", 0))
+            comments = data.get("comments", "")
+        except Exception as e:
+            print(f"Error parsing grading response: {e}")
+            comments = "Error parsing grading response."
+            
+        db.add_progress_tracking(
+            user_id=user_id,
+            module_id=module_id,
+            course_id=course_id,
+            answers_json=answer_str,
+            assessed=True,
+            assessed_score=assessed_score,
+            assessed_by_model="gemini-2.5-flash-preview-09-2025",
+            comments_from_model=comments,
+            phoenix_run_id=run_id
+        )
+        
+        return JSONResponse(status_code=200, content={
+            "success": True, 
+            "score": assessed_score, 
+            "comments": comments
+        })
+
+    except Exception as e:
+        print(f"Error in submit-module-progress: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "message": str(e)})

@@ -12,3 +12,4 @@ langchain-core
 fastapi[standard]
 itsdangerous
 python-dotenv
+pwdlib[argon2]

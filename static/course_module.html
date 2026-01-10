@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Your Vocabulary – FluentMind</title>
+  <title>Learn – FluentMind</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/course_learning.css') }}" />
-  <link rel="stylesheet" href="{{ url_for('static', path='css/course_module.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/course_module.css') }}?v=2" />
 </head>
 
 <body class="vocabulary-page">
@@ -61,14 +61,36 @@
                   <a href="/learn/course{{ course.course_id }}" class="return-link">&larr; Back to Course Plan</a>
               </div>
           {% endif %}
+
+          <div class="module-rating-section">
+            <h3 class="rating-header">Rate this module</h3>
+            
+            <div class="rating-controls-wrapper">
+              <label class="rating-option" for="rating-up">
+                <input type="radio" name="rating" value="1" id="rating-up">
+                <span class="emoji">👍</span> 
+                <span id="label-up">Thumbs Up</span>
+              </label>
+              
+              <label class="rating-option" for="rating-down">
+                <input type="radio" name="rating" value="0" id="rating-down">
+                <span class="emoji">👎</span> 
+                <span id="label-down">Thumbs Down</span>
+              </label>
+            </div>
+            
+            <div class="review-area-wrapper">
+              <label for="review-text" class="review-label">Write a review (optional):</label>
+              <textarea id="review-text" class="review-textarea" rows="4" placeholder="What did you like or dislike about this module?"></textarea>
+            </div>
+            
+            <button id="submit-review" class="submit-review-btn" onclick="sendPayload()">Submit Feedback</button>
+          </div>
+
       </div>
     </div>
   </main>
-
-  <!-- Styles moved to static/css/course_module.css -->
-
-</body>
-</html>
+  
   <footer>
     <div class="wrap">
       <div class="foot-top">
@@ -97,7 +119,84 @@
     </div>
   </footer>
 
-  <script>
-  </script>
+<script>
+  document.querySelectorAll('input[name="rating"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+
+      document.querySelectorAll('.rating-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      
+      if (e.target.checked) {
+        e.target.closest('.rating-option').classList.add('selected');
+      }
+    });
+  });
+
+  async function sendPayload(){
+    const ratingInput = document.querySelector('input[name="rating"]:checked');
+    if (!ratingInput) {
+      alert("Please select a rating (Thumbs Up or Thumbs Down) before submitting.");
+      return; 
+    }
+    const score = parseInt(ratingInput.value);
+
+    const payload = {
+      span_id: "{{ span_id }}",
+      annotations: {
+        module_id: {{ module.module_id }},
+        course_id: {{ module.course_id }},
+        score: score,
+        review: document.getElementById("review-text").value
+      }
+    };
+    
+    try {
+      const btn = document.getElementById("submit-review");
+      const originalText = btn.innerText;
+      btn.disabled = true;
+      btn.innerText = "Submitting...";
+
+      const response = await fetch("/api/submit-module-progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        btn.innerText = "Feedback Sent!";
+        btn.style.backgroundColor = "#27ae60";
+        setTimeout(() => {
+          btn.innerText = "Submit Feedback";
+          btn.disabled = false;
+          btn.style.backgroundColor = "";
+          document.getElementById("review-text").value = "";
+          document.querySelectorAll('input[name="rating"]').forEach(r => r.checked = false);
+          document.querySelectorAll('.rating-option').forEach(o => o.classList.remove('selected'));
+        }, 3000);
+      } else {
+        const errorData = await response.json();
+        console.error("Error submitting feedback:", errorData);
+        alert("There was an error submitting your feedback. Please try again.");
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error. Please try again.");
+      const btn = document.getElementById("submit-review");
+      btn.disabled = false;
+      btn.innerText = "Submit Feedback";
+    }
+  }
+
+
+  document.getElementById("submit-review").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await sendPayload();
+  });
+</script>
 </body>
 </html>

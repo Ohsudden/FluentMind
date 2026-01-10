@@ -499,3 +499,13 @@ class Database:
         if not row:
             return None
         return row[0]
+    
+    def assess_module_user(self, user_id: int, module_id: int, course_id: int, rating: bool, review: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "INSERT INTO module_rating (module_id, user_id, course_id, rating, review) VALUES (?, ?, ?, ?, ?)",
+            (module_id, user_id, course_id, rating, review)
+        )
+        connection.commit()
+        connection.close()

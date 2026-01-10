@@ -9,7 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 import phoenix as px
 from phoenix.otel import register
 from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import Status, StatusCode, format_span_id, get_current_span
 import requests
 import json
 import weaviate
@@ -134,7 +134,8 @@ class PhoenixTracking:
                 output_dict = {
                     'role': 'assistant',
                     'content': response.content,
-                    'total_tokens': total_tokens
+                    'total_tokens': total_tokens,
+                    'span_id':  format_span_id(span.get_span_context().span_id),
                 }
                 
                 span.add_event("LLM generation completed")
@@ -347,3 +348,5 @@ class PhoenixTracking:
                 span.set_attribute("error.message", str(e))
                 span.add_event("Image generation failed")
                 raise Exception(f"Failed to generate image. Error: {e}")
+        
+            

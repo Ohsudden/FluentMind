@@ -27,6 +27,27 @@
       <div class="lang">en | ua</div>
     </div>
   </header>
+  <style>
+     .enroll-btn{
+    display:inline-block;
+    padding:16px 44px;
+    font-size:24px;
+    font-weight:600;
+    font-style:italic;
+    border:1px solid #121212;
+    border-radius:30px;
+    background:linear-gradient(90deg,#9e2ddf,#6919d2);
+    color:#f2d9d9;
+    cursor:pointer;
+    box-shadow:0 2px 4px rgba(0,0,0,.25);
+    letter-spacing:.5px;
+    transition:.25s
+}
+ .enroll-btn:hover{
+    filter:brightness(1.07);
+    transform:translateY(-2px)
+}
+  </style>
 
   <main class="wrap settings-wrapper">
     <aside class="settings-sidebar">
@@ -254,7 +275,7 @@
                 }
                 htmlContent += `</div></div>`;
             });
-            htmlContent += `<button type="button" onclick="submitExamAnswers()">Submit Answers</button>
+            htmlContent += `<button type="button" onclick="submitExamAnswers()" class='submit-btn'>Submit Answers</button>
             </form>`;
         } else {
              console.warn("Falling back to text mode");
