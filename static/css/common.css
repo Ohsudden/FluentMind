@@ -176,3 +176,5 @@ footer{
 .btn-main:hover{filter:brightness(1.06)}
 .btn-main:active{filter:brightness(.95)}
 .btn-main:focus-visible{outline:2px solid #000;outline-offset:3px}
+
+.hidden { display: none !important; }

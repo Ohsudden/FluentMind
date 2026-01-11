@@ -45,7 +45,7 @@ class PhoenixTracking:
                 print(f"Switched Phoenix gRPC port to {new_port}")
 
             try:
-                self.session = px.launch_app()
+                self.session = px.launch_app(use_temp_dir=False)
             except Exception as e:
                 print(f"Warning: Could not launch Phoenix UI: {e}")
 
@@ -294,8 +294,7 @@ class PhoenixTracking:
                 span.set_attribute(f"{type}.total_tokens", response.get('total_tokens', 0))
                 span.add_event(f"{type.capitalize()} generation completed successfully")
                 span.set_status(Status(StatusCode.OK))
-                trace_id = f"{span.get_span_context().trace_id:032x}"
-                return {"content": response['content'], "run_id": trace_id}
+                return {"content": response['content'], "run_id": response.get('span_id')}
             
             except Exception as e:
                 span.set_status(Status(StatusCode.ERROR, str(e)))

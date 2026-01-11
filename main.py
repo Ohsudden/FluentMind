@@ -3,10 +3,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from pydantic import BaseModel
 from phoenix_tracking import PhoenixTracking
 from database import Database
 from pwdlib import PasswordHash
-import os, time, secrets, ast, json
+import os, time, secrets, ast, json, re
+from typing import List, Optional
+import requests
 from dotenv import load_dotenv
 from phoenix.client import Client
 
@@ -522,21 +525,32 @@ async def generate_course(request: Request, level: str):
     course_content = response["content"]
     if isinstance(course_content, str):
         import json
+        import re
+        import ast
         try:
             to_parse = course_content.strip()
+            match = re.search(r"\{.*\}", to_parse, re.DOTALL)
+            if match:
+                to_parse = match.group(0)
+            
             if to_parse.startswith("```"):
-                # Remove first line
                 parts = to_parse.split("\n", 1)
                 if len(parts) > 1:
                     to_parse = parts[1]
-                # Remove last line if it is just ```
                 to_parse = to_parse.strip()
                 if to_parse.endswith("```"):
                      to_parse = to_parse[:-3]
-            course_content = json.loads(to_parse)
+
+            try:
+                course_content = json.loads(to_parse)
+            except json.JSONDecodeError:
+                 course_content = ast.literal_eval(to_parse)
+
         except Exception as e:
             print(f"Error parsing course content JSON: {e}")
-            return JSONResponse(status_code=500, content={"success": False, "message": "Failed to parse course content from LLM."})
+            print(f"Raw content start: {course_content[:500]}...")
+            print(f"Raw content end: ...{course_content[-500:]}")
+            return JSONResponse(status_code=500, content={"success": False, "message": f"Failed to parse course content from LLM: {str(e)}"})
 
     if not isinstance(course_content, dict):
          return JSONResponse(status_code=500, content={"success": False, "message": "Course content is not a valid dictionary."})
@@ -548,6 +562,70 @@ async def generate_course(request: Request, level: str):
     db.enroll_user_in_course(user_id=user_id, course_id=course_id, start_date=start_date)
 
     return JSONResponse(status_code=200, content={"success": True, "course": course_content})
+
+
+class ExerciseSubmission(BaseModel):
+    id: int
+    question_context: str
+    user_answer: str
+
+class ModuleSubmission(BaseModel):
+    url: str
+    exercises: List[ExerciseSubmission]
+
+@app.post("/api/submit_module_answers")
+async def submit_module_answers(submission: ModuleSubmission, request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+    
+    # Parse URL to get course and module info
+    course_id_match = re.search(r'course(\d+)', submission.url)
+    module_num_match = re.search(r'module(\d+)', submission.url)
+    
+    course_id = course_id_match.group(1) if course_id_match else "unknown"
+    module_number = module_num_match.group(1) if module_num_match else "unknown"
+
+    exercises_text = ""
+    for ex in submission.exercises:
+        exercises_text += f"Exercise {ex.id}:\nContext: {ex.question_context}\nUser Answer: {ex.user_answer}\n\n"
+
+    prompt = f"""
+    You are an expert English teacher grading a student's module submission.
+    
+    Course ID: {course_id}
+    Module: {module_number}
+    
+    Here are the exercises and the student's answers extracted from the page:
+    {exercises_text}
+    
+    Please provide constructive feedback for the student. 
+    1. Correct any mistakes politely.
+    2. Explain why an answer is wrong if it is.
+    3. Praise good answers.
+    4. Provide the correct answer if the student was wrong.
+    
+    Format your response as HTML (just the inner body content, no <html> tags) suitable for displaying inside a div. 
+    Use <div class="feedback-item"> for each exercise feedback.
+    Add some styling classes.
+    """
+
+    response = phoenix_tracker.generate(
+        temperature=0.3,
+        model="gemini-2.5-flash-preview-09-2025",
+        prompt_context=prompt,
+        name="Module Grading",
+        type="grading", 
+        collection_name="CefrGrammarProfile"
+    )
+
+    feedback_html = response["content"] # phoenix_tracker returns dict
+    
+    # Handle occasional markdown wrapping
+    if isinstance(feedback_html, str) and feedback_html.strip().startswith("```html"):
+         feedback_html = feedback_html.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
+    
+    return JSONResponse(status_code=200, content={"success": True, "feedback_html": feedback_html})
 
 @app.get("/api/get_courses")
 async def get_courses(request: Request):
@@ -580,21 +658,44 @@ async def generate_module(request: Request, course_id: int, module_number: int):
 
         For exercises requiring user input, use the following HTML structure and classes:
         - For text inputs: use <input type="text" class="exercise-input" placeholder="...">
+        - For longer text inputs (writing prompts): use <textarea class="exercise-input" rows="4" placeholder="..."></textarea>
         - For multiple choice/radio buttons: wrap each option in a label with class "exercise-radio-label". Inside the label, put the <input type="radio" class="exercise-radio-input" name="group_name"> first, then the text. Wrap the group of radio buttons in a div with class "exercise-radio-group".
         - Wrap each exercise in a div with class "exercise-box".
 
+        Ensure the JSON output is a single valid JSON string. Do not use Python-style string concatenation (e.g. "..." + "...") inside values.
         JSON ONLY.""", name="English Course Module", type="course_module", collection_name="CefrGrammarProfile")
     module_content = response["content"]
+    phoenix_run_id = response.get("run_id")
+    
+    parsed_json = None
     if isinstance(module_content, str):
-        import json
+        content_to_parse = module_content.strip()
+        
+        code_block_match = re.search(r"```(?:json)?\s*(.*?)```", content_to_parse, re.DOTALL)
+        if code_block_match:
+            content_to_parse = code_block_match.group(1).strip()
+        
         try:
-            if module_content.strip().startswith("```"):
-                module_content = module_content.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
-            module_content = json.loads(module_content)
-        except:
-            print("Error parsing module content JSON")
-            pass
-        db.add_module(course_id=course_id, title=f"Module {module_number}", week_number=module_number, content_html=str(module_content))
+            parsed_json = json.loads(content_to_parse)
+        except json.JSONDecodeError:
+            try:
+                start = content_to_parse.find('{')
+                end = content_to_parse.rfind('}')
+                if start != -1 and end != -1:
+                    json_str = content_to_parse[start:end+1]
+                    parsed_json = json.loads(json_str)
+            except:
+                pass
+
+        if parsed_json is None:
+             print(f"Error parsing module content JSON. Raw content preview: {module_content[:200]}")
+             if "<div" in module_content or "<h" in module_content:
+                 parsed_json = {"html": module_content}
+    
+    if parsed_json:
+        module_content = parsed_json
+        
+    db.add_module(course_id=course_id, title=f"Module {module_number}", week_number=module_number, content_html=str(module_content), phoenix_id=phoenix_run_id)
     return JSONResponse(status_code=200, content={"success": True, "module": module_content})
 
 @app.get("/learn/course{course_id}")
@@ -638,10 +739,20 @@ async def learn_course_module(request: Request, course_id: int, module_number: i
             raw_content = current_module["content_html"]
             
             try:
-                content_data = json.loads(raw_content)
+                # Attempt to clean up common issues like Python string concatenation
+                cleaned_raw = raw_content
+                if '" + "' in cleaned_raw or "' + '" in cleaned_raw:
+                    cleaned_raw = re.sub(r'"\s*\+\s*"', "", cleaned_raw)
+                    cleaned_raw = re.sub(r"'\s*\+\s*'", "", cleaned_raw)
+                    
+                content_data = json.loads(cleaned_raw)
             except:
                 try:
                     cleaned = raw_content.strip()
+                    # Try cleaning concatenation here too
+                    cleaned = re.sub(r'"\s*\+\s*"', "", cleaned)
+                    cleaned = re.sub(r"'\s*\+\s*'", "", cleaned)
+                    
                     if cleaned.startswith('{') and cleaned.endswith('"'):
                         cleaned = cleaned[:-1]
                     content_data = json.loads(cleaned)
@@ -668,12 +779,14 @@ async def learn_course_module(request: Request, course_id: int, module_number: i
                              current_module["rendered_html"] += "</ul>"
                          elif isinstance(v, str):
                              if v.strip().startswith("<"):
-                                  current_module["rendered_html"] += v
+                                 current_module["rendered_html"] += v
                              else:
-                                  current_module["rendered_html"] += f"<h3>{k.capitalize()}</h3><p>{v}</p>"
-
+                                 current_module["rendered_html"] += f"<p><strong>{k}:</strong> {v}</p>"
             elif isinstance(content_data, str):
                  current_module["rendered_html"] = content_data
+            else:
+                 # Fallback: parsing failed, treat raw content as HTML
+                 current_module["rendered_html"] = raw_content
 
         except Exception as e:
             print(f"Error preparing module content: {e}")
@@ -771,6 +884,69 @@ async def api_get_modules(request: Request, course_id: int):
 #     except Exception as e:
 #         return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
+@app.post("/api/submit-module-feedback")
+async def submit_module_feedback(request: Request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Invalid JSON."})
+    
+    if "annotations" not in payload:
+         return JSONResponse(status_code=400, content={"success": False, "message": "Annotations missing."})
+
+    annotations = payload.get("annotations", {})
+    span_id = payload.get("span_id")
+    
+    try:
+        db.assess_module_user(
+            user_id=user_id,
+            module_id=annotations.get("module_id"),
+            course_id=annotations.get("course_id"),
+            rating=annotations.get("score"),
+            review=annotations.get("review"),
+        )
+        print(f"[✓] Feedback stored in database for user {user_id}, module {annotations.get('module_id')}")
+        
+        if span_id and span_id != "None" and span_id.strip():
+            print(f"[INFO] Attempting to annotate Phoenix span: {span_id}")
+            try:
+                phoenix_host = os.getenv("PHOENIX_HOST", "http://localhost:6006")
+                url = f"{phoenix_host}/v1/span_annotations?sync=false"
+                
+                annotation = {
+                    "span_id": span_id,
+                    "name": "user feedback",
+                    "annotator_kind": "HUMAN",
+                    "result": {
+                        "label": annotations.get("review"),
+                        "score": annotations.get("score"),
+                    }
+                }
+                
+                response = requests.post(url, json={"data": [annotation]})
+                
+                if response.status_code == 200:
+                    print(f"[✓] Annotation added to Phoenix successfully via REST API")
+                else:
+                    print(f"[WARNING] Phoenix annotation failed with status {response.status_code}: {response.text}")
+
+            except Exception as e:
+                print(f"[WARNING] Phoenix annotation failed (feedback still saved): {type(e).__name__}: {str(e)}")
+        else:
+            print(f"[WARNING] No valid span_id provided. Feedback saved but not annotated in Phoenix.")
+        
+        return JSONResponse(status_code=200, content={"success": True, "message": "Feedback submitted and saved."})
+    except Exception as e:
+        print(f"[ERROR] Failed to save feedback: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"success": False, "message": f"Error saving feedback: {str(e)}"})
+
+
 @app.post("/api/submit-module-progress")
 async def submit_module_progress(request: Request):
     user_id = request.session.get("user_id")
@@ -781,35 +957,6 @@ async def submit_module_progress(request: Request):
         payload = await request.json()
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Invalid JSON."})
-
-    if "annotations" in payload:
-        annotations = payload.get("annotations", {})
-        span_id = payload.get("span_id")
-        
-        try:
-            if span_id:
-                try:
-                    client = Client()
-                    client.add_span_annotations(
-                        annotation_name="user feedback",
-                        annotator_kind="HUMAN",
-                        span_id=span_id,
-                        label=annotations.get("review"),
-                        score=annotations.get("score"),
-                    )
-                except Exception as e:
-                    print(f"Phoenix annotation failed (ignoring): {e}")
-
-            db.assess_module_user(
-                user_id=user_id,
-                module_id=annotations.get("module_id"),
-                course_id=annotations.get("course_id"),
-                rating=annotations.get("score"),
-                review=annotations.get("review"),
-            )
-            return JSONResponse(status_code=200, content={"success": True, "message": "Feedback submitted."})
-        except Exception as e:
-            return JSONResponse(status_code=500, content={"success": False, "message": str(e)})
 
     module_id = payload.get("module_id")
     course_id = payload.get("course_id")

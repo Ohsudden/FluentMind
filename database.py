@@ -50,6 +50,7 @@ class Database:
     title TEXT,
     week_number INTEGER,
     content_html TEXT,
+    phoenix_id TEXT,
     FOREIGN KEY (course_id) REFERENCES course(course_id)
     );
 
@@ -343,12 +344,12 @@ class Database:
         connection.commit()
         connection.close()
 
-    def add_module(self, course_id: int, title: str, week_number: int, content_html: str):
+    def add_module(self, course_id: int, title: str, week_number: int, content_html: str, phoenix_id: str = None):
         connection = sqlite3.connect(self.db_name)
         cursor = connection.cursor()
         cursor.execute(
-            "INSERT INTO module (course_id, title, week_number, content_html) VALUES (?, ?, ?, ?)",
-            (course_id, title, week_number, content_html)
+            "INSERT INTO module (course_id, title, week_number, content_html, phoenix_id) VALUES (?, ?, ?, ?, ?)",
+            (course_id, title, week_number, content_html, phoenix_id)
         )
         connection.commit()
         connection.close()
@@ -472,7 +473,7 @@ class Database:
         connection = sqlite3.connect(self.db_name)
         cursor = connection.cursor()
         cursor.execute(
-            "SELECT module_id, course_id, title, week_number, content_html FROM module WHERE course_id = ? ORDER BY week_number",
+            "SELECT module_id, course_id, title, week_number, content_html, phoenix_id FROM module WHERE course_id = ? ORDER BY week_number",
             (course_id,)
         )
         rows = cursor.fetchall()
@@ -484,7 +485,8 @@ class Database:
                 "course_id": row[1],
                 "title": row[2],
                 "week_number": row[3],
-                "content_html": row[4]
+                "content_html": row[4],
+                "phoenix_id": row[5]
             })
         return modules
     def get_module_content(self, module_id: int, course_id: int):
