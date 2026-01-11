@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', path='css/vocabulary.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/settings.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', path='css/course_learning.css') }}" />
-  <link rel="stylesheet" href="{{ url_for('static', path='css/course_module.css') }}?v=1" />
+  <link rel="stylesheet" href="{{ url_for('static', path='css/course_module.css') }}?v=3" />
 </head>
 <body class="vocabulary-page">
   <header>
@@ -163,7 +163,6 @@
       }
     };
     
-    // Debug logging
     console.log("[DEBUG] Sending feedback payload:", payload);
     console.log("[DEBUG] Phoenix ID:", "{{ module.phoenix_id }}");
     console.log("[DEBUG] Module ID:", {{ module.module_id }});
