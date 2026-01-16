@@ -400,7 +400,8 @@ async def generate_exam(request: Request):
             model="gemini-2.5-flash-preview-09-2025",
             prompt_context="""You are an expert English exam creator. Generate a 30-question multiple-choice English placement test.
             
-            IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), or explanations. The output must be parseable by JSON.parse().
+            IMPORTANT: Return ONLY a valid JSON object. Do NOT include any introductory text, markdown formatting (like ```json), 
+            or explanations. The output must be parseable by JSON.parse().
             
             The JSON structure MUST be:
             {
@@ -579,7 +580,6 @@ async def submit_module_answers(submission: ModuleSubmission, request: Request):
     if not user_id:
         return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
     
-    # Parse URL to get course and module info
     course_id_match = re.search(r'course(\d+)', submission.url)
     module_num_match = re.search(r'module(\d+)', submission.url)
     
@@ -619,9 +619,9 @@ async def submit_module_answers(submission: ModuleSubmission, request: Request):
         collection_name="CefrGrammarProfile"
     )
 
-    feedback_html = response["content"] # phoenix_tracker returns dict
+    feedback_html = response["content"] 
     
-    # Handle occasional markdown wrapping
+ 
     if isinstance(feedback_html, str) and feedback_html.strip().startswith("```html"):
          feedback_html = feedback_html.strip().split("\n", 1)[1].rsplit("\n", 1)[0]
     

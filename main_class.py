@@ -863,10 +863,9 @@ class FluentMindApp:
                 rating=annotations.get("score"),
                 review=annotations.get("review"),
             )
-            print(f"[✓] Feedback stored in database for user {user_id}, module {annotations.get('module_id')}")
+            print(f"Feedback stored in database for user {user_id}, module {annotations.get('module_id')}")
             
             if span_id and span_id != "None" and span_id.strip():
-                print(f"[INFO] Attempting to annotate Phoenix span: {span_id}")
                 try:
                     phoenix_host = os.getenv("PHOENIX_HOST", "http://localhost:6006")
                     url = f"{phoenix_host}/v1/span_annotations?sync=false"
@@ -884,18 +883,18 @@ class FluentMindApp:
                     response = requests.post(url, json={"data": [annotation]})
                     
                     if response.status_code == 200:
-                        print(f"[✓] Annotation added to Phoenix successfully via REST API")
+                        print(f"Annotation added to Phoenix successfully via REST API")
                     else:
-                        print(f"[WARNING] Phoenix annotation failed with status {response.status_code}: {response.text}")
+                        print(f"WARNING: Phoenix annotation failed with status {response.status_code}: {response.text}")
 
                 except Exception as e:
-                    print(f"[WARNING] Phoenix annotation failed (feedback still saved): {type(e).__name__}: {str(e)}")
+                    print(f"WARNING: Phoenix annotation failed (feedback still saved): {type(e).__name__}: {str(e)}")
             else:
-                print(f"[WARNING] No valid span_id provided. Feedback saved but not annotated in Phoenix.")
+                print(f"WARNING: No valid span_id provided. Feedback saved but not annotated in Phoenix.")
             
             return JSONResponse(status_code=200, content={"success": True, "message": "Feedback submitted and saved."})
         except Exception as e:
-            print(f"[ERROR] Failed to save feedback: {type(e).__name__}: {str(e)}")
+            print(f"ERROR: Failed to save feedback: {type(e).__name__}: {str(e)}")
             import traceback
             traceback.print_exc()
             return JSONResponse(status_code=500, content={"success": False, "message": f"Error saving feedback: {str(e)}"})
