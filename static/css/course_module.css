@@ -83,7 +83,7 @@
     padding-left: 8px;
 }
 
-/* Tables */
+
 .module-content table {
     width: 100%;
     border-collapse: collapse;
@@ -121,7 +121,7 @@
     background-color: #fafbfc;
 }
 
-/* Emphasis & Strong */
+
 .module-content strong, 
 .module-content b {
     color: #2d3436;
@@ -130,10 +130,9 @@
 
 .module-content em, 
 .module-content i {
-    color: #6c5ce7; /* Highlight italics slightly */
+    color: #6c5ce7; 
 }
 
-/* Blockquotes / Callouts */
 .module-content blockquote {
     border-left: 4px solid #6c5ce7;
     background: #f8f7fc;

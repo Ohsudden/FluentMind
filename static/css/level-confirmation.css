@@ -247,7 +247,7 @@ body.level-confirmation-page{
   color: #7c7299;
 }
 
-/* use styled label instead of native input button */
+
 #certificate-file { display: none; }
 
 #upload-certificate-form button[type="submit"] {

@@ -10,32 +10,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const exerciseBoxes = document.querySelectorAll('.exercise-box');
             
             exerciseBoxes.forEach((box, index) => {
-                // Get text content of the box as the "question context", excluding inputs
-                // Clone the node to remove inputs from text extraction if we wanted to be substantial,
-                // but just getting innerText is usually enough context for the LLM.
                 const questionText = box.innerText; 
                 
                 let userAnswer = "";
                 
-                // Check for text input
                 const textInput = box.querySelector('.exercise-input');
                 if (textInput) {
                     userAnswer = textInput.value;
                 }
                 
-                // Check for textarea
                 const textArea = box.querySelector('textarea');
                 if (textArea) {
                     userAnswer = textArea.value;
                 }
                 
-                // Check for radio input
                 const checkedRadio = box.querySelector('.exercise-radio-input:checked');
                 if (checkedRadio) {
-                    // Get the label text for the checked radio
                     userAnswer = checkedRadio.parentElement.textContent.replace(checkedRadio.value, '').trim();
                 } else {
-                    // check if there are radios but none checked
                      if (box.querySelector('.exercise-radio-input')) {
                          userAnswer = "(No answer selected)";
                      }
@@ -56,13 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                // Parse URL to get course and module IDs
-                // /learn/course{course_id}/module{module_number}
+
                 const urlParts = window.location.pathname.split('/');
-                // Assuming format /learn/course1/module1
-                // We'll pass the whole path and let backend parse or pass IDs if we can extract them nicely.
-                // Let's rely on the URL sending mechanism in the payload.
-                
+
                 const response = await fetch('/api/submit_module_answers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
