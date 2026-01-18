@@ -23,6 +23,7 @@ class Database:
     pp_image TEXT default 'img/settings/avatar-outline.svg',
     native_language TEXT,
     interface_language TEXT,
+    role TEXT CHECK(role IN ('Student', 'Technical Support')) DEFAULT 'Student',
     join_date TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -110,18 +111,25 @@ class Database:
         FOREIGN KEY (user_id) REFERENCES user(user_id)
     );
     ''')
+        
+        # Check if role column exists in user table (manual migration)
+        cursor.execute("PRAGMA table_info(user)")
+        columns = [info[1] for info in cursor.fetchall()]
+        if 'role' not in columns:
+            cursor.execute("ALTER TABLE user ADD COLUMN role TEXT CHECK(role IN ('Student', 'Technical Support')) DEFAULT 'Student'")
+            
         connection.commit()
         connection.close()
 
-    def create_user(self, name, surname, email, password):
+    def create_user(self, name, surname, email, password, role='Student'):
         connection = sqlite3.connect(self.db_name)
         cursor = connection.cursor()
         password_hash = PasswordHash.recommended().hash(password)
 
         try:
             cursor.execute(
-                "INSERT INTO user (name, surname, email, password_hash) VALUES (?, ?, ?, ?)",
-                (name, surname, email, password_hash)
+                "INSERT INTO user (name, surname, email, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+                (name, surname, email, password_hash, role)
             )
             connection.commit()
             return True, "User registered successfully."
@@ -135,7 +143,7 @@ class Database:
         cursor = connection.cursor()
 
         cursor.execute(
-            "SELECT user_id, name, surname, email, password_hash FROM user WHERE email = ?",
+            "SELECT user_id, name, surname, email, password_hash, role FROM user WHERE email = ?",
             (email,)
         )
         row = cursor.fetchone()
@@ -152,7 +160,8 @@ class Database:
             "id": row[0],
             "name": row[1],
             "surname": row[2],
-            "email": row[3]
+            "email": row[3],
+            "role": row[5]
         }
 
     def get_user_id_by_email(self, email: str):
@@ -169,7 +178,7 @@ class Database:
         connection = sqlite3.connect(self.db_name)
         cursor = connection.cursor()
         cursor.execute(
-            "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level, pp_image FROM user WHERE user_id = ?",
+            "SELECT user_id, name, surname, email, password_hash, native_language, interface_language, proficiency_level, pp_image, role FROM user WHERE user_id = ?",
             (user_id,)
         )
         row = cursor.fetchone()
@@ -185,7 +194,8 @@ class Database:
             "native_language": row[5],
             "interface_language": row[6],
             "proficiency_level": row[7],
-            "pp_image": row[8]
+            "pp_image": row[8],
+            "role": row[9]
         }
         
     def rechange_password(self, user_id: int, new_password: str):
@@ -511,3 +521,47 @@ class Database:
         )
         connection.commit()
         connection.close()
+
+    def get_pending_certificates(self):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            '''
+            SELECT c.certificate_id, c.user_id, c.certificate, c.status, u.name, u.surname, u.email
+            FROM certificate c
+            JOIN user u ON c.user_id = u.user_id
+            WHERE c.status = 0
+            '''
+        )
+        rows = cursor.fetchall()
+        connection.close()
+        certificates = []
+        for row in rows:
+            certificates.append({
+                "certificate_id": row[0],
+                "user_id": row[1],
+                "certificate": row[2],
+                "status": row[3],
+                "user_name": row[4],
+                "user_surname": row[5],
+                "user_email": row[6]
+            })
+        return certificates
+
+    def approve_certificate_and_update_level(self, certificate_id: int, user_id: int, new_level: str):
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        
+        cursor.execute(
+            "UPDATE user SET proficiency_level = ? WHERE user_id = ?",
+            (new_level, user_id)
+        )
+        
+        cursor.execute(
+            "UPDATE certificate SET status = 1 WHERE certificate_id = ?",
+            (certificate_id,)
+        )
+        
+        connection.commit()
+        connection.close()
+        return True, "Certificate approved and user level updated."

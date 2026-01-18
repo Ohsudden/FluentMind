@@ -13,7 +13,7 @@ from opentelemetry.trace import Status, StatusCode, format_span_id, get_current_
 import requests
 import json
 import weaviate
-# from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -60,7 +60,7 @@ class PhoenixTracking:
 
 
     def generate_with_single_input(self, prompt: str, role: str = 'user', top_p: float = None, temperature: float = 1.0,
-                               max_tokens: int = 500, model: str = "gemini-2.5-pro", **kwargs):
+                               max_tokens: int = 500, model: str = "gemini-2.5-pro", family: str = "gemini", **kwargs):
         """Using comprehensive outlook of parameters for LLM generation with Phoenix tracking."""
         with self.tracer.start_as_current_span("llm_generation", openinference_span_kind='llm') as span:
             try:
@@ -78,34 +78,26 @@ class PhoenixTracking:
                 if temperature is None:
                     temperature = 1.0
                 
-                # if use_openai:
-                #     llm = ChatOpenAI(
-                #         model=model if "gpt" in model else "gpt-3.5-turbo",
-                #         temperature=temperature,
-                #         max_tokens=max_tokens,
-                #         model_kwargs={"top_p": top_p, **kwargs}
-                #     )
-                # else:
-        
-                #     if "GOOGLE_API_KEY" not in os.environ:
-                #         os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key: ")
-                #         model = ChatGoogleGenerativeAI(
-                #             model="gemini-3-pro-preview",
-                #             temperature=1.0,  
-                #             max_tokens=None,
-                #             timeout=None,
-                #             max_retries=2,
-                #     )
-                if "GOOGLE_API_KEY" not in os.environ:
-                    raise ValueError("GOOGLE_API_KEY environment variable is not set. Please set it in your .env file or environment.")
-                
-                llm = ChatGoogleGenerativeAI(
-                    model=model,
-                    temperature=temperature,  
-                    max_tokens=max_tokens,
-                    timeout=None,
-                    max_retries=2,
-                )
+                if family.lower() == 'openai':
+                    if not os.environ.get("OPENAI_API_KEY"):
+                        os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter your OpenAI API key: ")
+                    llm = ChatOpenAI(
+                        model=model if "gpt" in model else "gpt-3.5-turbo",
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        model_kwargs={"top_p": top_p, **kwargs}
+                    )
+                elif family.lower() == 'gemini':
+                    if "GOOGLE_API_KEY" not in os.environ:
+                        raise ValueError("GOOGLE_API_KEY environment variable is not set. Please set it in your .env file or environment.")
+                    
+                    llm = ChatGoogleGenerativeAI(
+                        model=model,
+                        temperature=temperature,  
+                        max_tokens=max_tokens,
+                        timeout=None,
+                        max_retries=2,
+                    )
                 
                 if role.lower() == 'system':
                     messages = [SystemMessage(content=prompt)]

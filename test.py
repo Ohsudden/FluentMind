@@ -13,7 +13,7 @@ import weaviate
 
 
 from phoenix_tracking import PhoenixTracking
-
+import time
 
 english_test_check_propmt = """
 You are a student who passes the placement test of English, solve it by writing in a way, Number - The letter of the answer.
@@ -665,7 +665,26 @@ Instructions:
 - Encourage the student and keep a supportive tone.
 
 """
-phoenix_tracker = PhoenixTracking(app_name="EnglishTestApp")
-response = phoenix_tracker.generate_with_single_input(prompt = evaluate, model = "gemini-2.5-flash-preview-09-2025")
 
-print(response)
+phoenix_tracker = PhoenixTracking(app_name="EnglishTestApp")
+start_time = time.time()
+response = phoenix_tracker.generate_with_single_input(prompt = evaluate, model = "gemini-2.5-flash-preview-09-2025")
+end_time = time.time()
+print(f"Time taken for gemini-2.5-flash-preview-09-2025: {end_time - start_time} seconds")
+print(f"Response Gemini 2.5-flash-preview-09-2025: {response}")
+start_time = time.time()
+response = phoenix_tracker.generate_with_single_input(prompt = evaluate, model = "gemini-2.0-flash")
+end_time = time.time()
+print(f"Time taken for gemini-2.0-flash: {end_time - start_time} seconds")
+print(f"Response Gemini 2.0-flash: {response}")
+start_time = time.time()
+response = phoenix_tracker.generate_with_single_input(prompt = evaluate, model = "gpt-5-mini", family="openai")
+end_time = time.time()
+print(f"Time taken for gpt-5-mini: {end_time - start_time} seconds")
+print(f"Response GPT-5-mini: {response}")
+start_time = time.time()
+response = phoenix_tracker.generate_with_single_input(prompt = evaluate, model = "gpt-5.2", family="openai")
+end_time = time.time()
+print(f"Time taken for gpt-5.2: {end_time - start_time} seconds")
+print(f"Response GPT-5.2: {response}")
+
