@@ -14,7 +14,7 @@ def recreate_collection(
     reranker_config=None,
     properties=None,
 ):
-    """Drop collection if it exists (to reset schema) then create it."""
+
     if client.collections.exists(name):
         client.collections.delete(name)
 

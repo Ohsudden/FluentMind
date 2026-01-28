@@ -112,7 +112,6 @@ class Database:
     );
     ''')
         
-        # Check if role column exists in user table (manual migration)
         cursor.execute("PRAGMA table_info(user)")
         columns = [info[1] for info in cursor.fetchall()]
         if 'role' not in columns:
@@ -308,6 +307,22 @@ class Database:
         )
         connection.commit()
         connection.close()
+
+    def update_user_role(self, email: str, role: str):
+        allowed_roles = {"Student", "Technical Support"}
+        if role not in allowed_roles:
+            return False
+
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "UPDATE user SET role = ? WHERE email = ?",
+            (role, email)
+        )
+        connection.commit()
+        updated = cursor.rowcount > 0
+        connection.close()
+        return updated
 
 
     def add_test(self, user_id: int, test_html: str, submitted_answers_json: str, assessed: bool,
@@ -565,3 +580,42 @@ class Database:
         connection.commit()
         connection.close()
         return True, "Certificate approved and user level updated."
+
+    def get_certificates_by_user(self, user_id: int):
+        """Get all certificates for a user."""
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT certificate_id, user_id, certificate, status FROM certificate WHERE user_id = ? ORDER BY certificate_id DESC",
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        connection.close()
+        certificates = []
+        for row in rows:
+            certificates.append({
+                "certificate_id": row[0],
+                "user_id": row[1],
+                "certificate": row[2],
+                "status": row[3]
+            })
+        return certificates
+
+    def assess_certificate(self, certificate_id: int, user_id: int, assessed_level: str, admin_note: str):
+        """Manually assess a certificate and update user level."""
+        connection = sqlite3.connect(self.db_name)
+        cursor = connection.cursor()
+        
+        cursor.execute(
+            "UPDATE user SET proficiency_level = ? WHERE user_id = ?",
+            (assessed_level, user_id)
+        )
+        
+        cursor.execute(
+            "UPDATE certificate SET status = 1 WHERE certificate_id = ?",
+            (certificate_id,)
+        )
+        
+        connection.commit()
+        connection.close()
+        return True, f"Certificate {certificate_id} assessed as {assessed_level}."

@@ -36,6 +36,10 @@ async def root(request: Request):
 async def learn(request: Request, exam: str = None):
     level = request.session.get("proficiency_level")
     user_id = request.session.get("user_id")
+    role = request.session.get("user_role")
+    
+    if user_id and role == "technical_support":
+        return templates.TemplateResponse(request, "technical_support.html", {"request": request})
 
     if not level and user_id:
         user = db.get_user_by_id(user_id)

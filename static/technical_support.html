@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>FluentMind – Technical Support</title>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/common.css') }}" />
+	<link rel="stylesheet" href="{{ url_for('static', path='css/technical_support.css') }}?v=1" />
+</head>
+<body class="support-page">
+	<header>
+		<div class="wrap row">
+			<div class="brand">
+				<img src="{{ url_for('static', path='img/logo-small.png') }}" alt="FluentMind logo" />
+				<span>FluentMind</span>
+			</div>
+			<nav>
+				<a href="/">Main</a>
+				<a href="/registration">Learn now</a>
+				<a href="/pricing">Pricing</a>
+				<a href="/contacts">Contacts</a>
+			</nav>
+			<div class="lang">en | ua</div>
+		</div>
+	</header>
+
+	<main class="wrap support-wrapper">
+		<header class="support-header">
+			<h1>Technical Support</h1>
+		</header>
+
+		<section class="support-grid">
+			<div class="support-stack">
+				<article class="support-card">
+					<h2>User lookup</h2>
+					<form class="support-form" id="userLookupForm" autocomplete="off">
+						<div class="row">
+							<label for="support-user-email">Email</label>
+							<input id="support-user-email" type="email" name="email" placeholder="user@fluentmind.com" />
+						</div>
+						<div class="row">
+							<label for="support-user-id">User ID</label>
+							<input id="support-user-id" type="text" name="user_id" placeholder="Optional" />
+						</div>
+					<div class="button-group">
+						<button class="support-btn" type="button" onclick="loadUserCertificates()">Load user certificates</button>
+						<button class="support-btn support-btn--primary" type="button" onclick="loadAllPendingCertificates()">Load all pending</button>
+					</div>
+					</form>
+				</article>
+
+				<article class="support-card">
+					<h2>Pending certificates</h2>
+					<div id="certificatesContainer">
+						<div class="empty-state">
+							<p>No pending certificates loaded.</p>
+							<p class="muted">Load a user to fetch certificates from the database.</p>
+						</div>
+					</div>
+				</article>
+			</div>
+
+			<div class="support-stack">
+				<article class="support-card">
+					<h2>Manual certificate assessment</h2>
+					<div id="assessmentFormContainer">
+						<div class="empty-state">
+							<p>Select a certificate to assess.</p>
+						</div>
+					</div>
+				</article>
+
+				<article class="support-card support-card--notice">
+					<h2>Checklist</h2>
+					<ul class="support-list">
+						<li>Verify certificate validity and authenticity.</li>
+						<li>Assess and assign appropriate language proficiency level.</li>
+						<li>Document the decision in the admin note.</li>
+					</ul>
+				</article>
+			</div>
+		</section>
+	</main>
+
+	<footer>
+		<div class="wrap">
+			<div class="foot-top">
+				<div class="foot-brand">
+					<img src="{{ url_for('static', path='img/logo-large.png') }}" alt="FluentMind logo large" />
+				</div>
+				<ul class="contact-list">
+					<li><img src="{{ url_for('static', path='img/icon-location.png') }}" alt="" /> <span><strong>Address:</strong> X street, city Zaporizhzhia, Ukraine</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-mail.png') }}" alt="" /> <span><strong>Email:</strong> vyshnevetskyivolodymyr@gmail.com</span></li>
+					<li><img src="{{ url_for('static', path='img/icon-phone.png') }}" alt="" /> <span><strong>Phone:</strong> +38 (063) 7597571</span></li>
+				</ul>
+				<div>
+					<div class="socials-foot">
+						<img src="{{ url_for('static', path='img/instagram.png') }}" alt="Instagram" />
+						<img src="{{ url_for('static', path='img/linkedin.png') }}" alt="LinkedIn" />
+						<img src="{{ url_for('static', path='img/facebook.png') }}" alt="Facebook" />
+					</div>
+				</div>
+			</div>
+			<div class="foot-bottom">
+				<span>©2025 FluentMind All rights reserved.</span>
+				<a href="#">Privacy Policy</a>
+				<a href="#">Terms of use</a>
+				<a href="#">Sitemap</a>
+			</div>
+		</div>
+	</footer>
+
+	<script>
+		let currentUser = null;
+
+		async function loadAllPendingCertificates() {
+			try {
+				const response = await fetch('/api/technical-support/all-pending', {
+					method: 'GET',
+					headers: { 'Content-Type': 'application/json' }
+				});
+
+				const data = await response.json();
+				if (!data.success) {
+					alert(data.message || 'Failed to load certificates.');
+					return;
+				}
+
+				currentUser = null;
+				displayAllPendingCertificates(data.certificates);
+			} catch (error) {
+				console.error('Error:', error);
+				alert('An error occurred while loading certificates.');
+			}
+		}
+
+		function displayAllPendingCertificates(certificates) {
+			const container = document.getElementById('certificatesContainer');
+
+			if (certificates.length === 0) {
+				container.innerHTML = '<div class="empty-state"><p>No pending certificates found.</p></div>';
+				return;
+			}
+
+			let html = '<div class="support-table-wrapper"><table class="support-table"><thead><tr><th>User</th><th>Email</th><th>Certificate</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+			certificates.forEach(cert => {
+				html += `<tr>
+					<td><strong>${cert.user_name} ${cert.user_surname}</strong></td>
+					<td><span class="muted">${cert.user_email}</span></td>
+					<td>${cert.certificate}</td>
+					<td><span class="status-pill status-pending">Pending</span></td>
+					<td><button type="button" class="support-btn" onclick="selectCertificateForAssessment(${cert.certificate_id}, ${cert.user_id}, '${cert.user_name}', '${cert.user_surname}')">Assess</button></td>
+				</tr>`;
+			});
+			html += '</tbody></table></div>';
+			container.innerHTML = html;
+		}
+
+		async function loadUserCertificates() {
+			const email = document.getElementById('support-user-email').value.trim();
+			const userId = document.getElementById('support-user-id').value.trim();
+
+			if (!email && !userId) {
+				alert('Please enter an email or user ID.');
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/technical-support/certificates', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email, user_id: userId })
+				});
+
+				const data = await response.json();
+				if (!data.success) {
+					alert(data.message || 'Failed to load certificates.');
+					return;
+				}
+
+				currentUser = data.user;
+				displayCertificates(data.certificates);
+			} catch (error) {
+				console.error('Error:', error);
+				alert('An error occurred while loading certificates.');
+			}
+		}
+
+		function displayCertificates(certificates) {
+			const container = document.getElementById('certificatesContainer');
+			const pending = certificates.filter(c => c.status === 0);
+
+			if (pending.length === 0) {
+				container.innerHTML = '<div class="empty-state"><p>No pending certificates for this user.</p></div>';
+				return;
+			}
+
+			let html = '<div class="support-table-wrapper"><table class="support-table"><thead><tr><th>Certificate</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+			pending.forEach(cert => {
+				html += `<tr>
+					<td><strong>${cert.certificate}</strong></td>
+					<td><span class="status-pill status-pending">Pending</span></td>
+					<td><button type="button" class="support-btn" onclick="selectCertificateForAssessment(${cert.certificate_id}, ${cert.user_id})">Assess</button></td>
+				</tr>`;
+			});
+			html += '</tbody></table></div>';
+			container.innerHTML = html;
+		}
+
+		function selectCertificateForAssessment(certificateId, userId, userName, userSurname) {
+			const container = document.getElementById('assessmentFormContainer');
+			let displayName = 'Unknown';
+			let displayLevel = 'Unknown';
+
+			if (currentUser) {
+				displayName = `${currentUser.name} ${currentUser.surname}`;
+				displayLevel = currentUser.proficiency_level || 'Not set';
+			} else if (userName && userSurname) {
+				displayName = `${userName} ${userSurname}`;
+				displayLevel = 'Not set';
+			}
+
+			const html = `
+				<form class="support-form" onsubmit="submitAssessment(event, ${certificateId}, ${userId})">
+					<div class="row">
+						<label>User</label>
+						<input type="text" value="${displayName}" disabled />
+					</div>
+					<div class="row">
+						<label>Current level</label>
+						<input type="text" value="${displayLevel}" disabled />
+					</div>
+					<div class="row">
+						<label for="assess-level">Assessed level</label>
+						<select id="assess-level" name="level" required>
+							<option value="">Select level</option>
+							<option value="A1">A1 – Beginner</option>
+							<option value="A2">A2 – Elementary</option>
+							<option value="B1">B1 – Intermediate</option>
+							<option value="B2">B2 – Upper-Intermediate</option>
+							<option value="C1">C1 – Advanced</option>
+							<option value="C2">C2 – Proficient</option>
+						</select>
+					</div>
+					<div class="row">
+						<label for="assess-note">Admin note</label>
+						<textarea id="assess-note" name="note" rows="4" placeholder="Document your assessment decision..."></textarea>
+					</div>
+					<button class="support-btn support-btn--primary" type="submit">Submit Assessment</button>
+					<button class="support-btn" type="button" onclick="clearAssessmentForm()">Cancel</button>
+				</form>
+			`;
+			container.innerHTML = html;
+		}
+
+		async function submitAssessment(event, certificateId, userId) {
+			event.preventDefault();
+			const level = document.getElementById('assess-level').value;
+			const note = document.getElementById('assess-note').value;
+
+			if (!level) {
+				alert('Please select a level.');
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/technical-support/assess', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ certificate_id: certificateId, user_id: userId, level, note })
+				});
+
+				const data = await response.json();
+				if (!data.success) {
+					alert(data.message || 'Failed to assess certificate.');
+					return;
+				}
+
+				alert('Certificate assessed successfully!');
+				clearAssessmentForm();
+				loadUserCertificates();
+			} catch (error) {
+				console.error('Error:', error);
+				alert('An error occurred while submitting assessment.');
+			}
+		}
+
+		function clearAssessmentForm() {
+			document.getElementById('assessmentFormContainer').innerHTML = '<div class="empty-state"><p>Select a certificate to assess.</p></div>';
+		}
+	</script>
+</body>
+</html>

@@ -39,6 +39,10 @@ class FluentMindApp:
         self.app.add_api_route("/settings", self.settings_me, methods=["GET"], response_class=HTMLResponse)
         self.app.add_api_route("/settings/{userid}", self.settings, methods=["GET"], response_class=HTMLResponse)
         self.app.add_api_route("/vocabulary", self.vocabulary_page, methods=["GET"], response_class=HTMLResponse)
+        self.app.add_api_route("/technical-support", self.technical_support, methods=["GET"], response_class=HTMLResponse)
+        self.app.add_api_route("/api/technical-support/certificates", self.api_get_user_certificates, methods=["POST"])
+        self.app.add_api_route("/api/technical-support/all-pending", self.api_get_all_pending_certificates, methods=["GET"])
+        self.app.add_api_route("/api/technical-support/assess", self.api_assess_certificate, methods=["POST"])
         self.app.add_api_route("/api/register", self.register_user, methods=["POST"])
         self.app.add_api_route("/login", self.login, methods=["GET"], response_class=HTMLResponse)
         self.app.add_api_route("/api/login", self.api_login, methods=["POST"])
@@ -98,6 +102,10 @@ class FluentMindApp:
     async def learn(self, request: Request, exam: str = None):
         level = request.session.get("proficiency_level")
         user_id = request.session.get("user_id")
+        role = request.session.get("user_role")
+
+        if role == "Technical Support":
+            return self.templates.TemplateResponse(request, "technical_support.html", {"request": request})
 
         if not level and user_id:
             user = self.db.get_user_by_id(user_id)
@@ -138,6 +146,23 @@ class FluentMindApp:
     async def contacts(self, request: Request):
         return self.templates.TemplateResponse(request, "contacts.html")
 
+    async def technical_support(self, request: Request):
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return RedirectResponse(url="/login", status_code=302)
+
+        role = request.session.get("user_role")
+        if not role:
+            user = self.db.get_user_by_id(user_id)
+            role = user.get("role") if user else None
+            if role:
+                request.session["user_role"] = role
+
+        if role != "Technical Support":
+            return RedirectResponse(url="/learn", status_code=302)
+
+        return self.templates.TemplateResponse(request, "technical_support.html", {"request": request})
+
     async def registration(self, request: Request):
         user_id = request.session.get("user_id")
         if user_id:
@@ -175,6 +200,94 @@ class FluentMindApp:
 
         return self.templates.TemplateResponse(request, "vocabulary.html", {"user": user})
 
+    async def technical_support(self, request: Request):
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return RedirectResponse(url="/login", status_code=302)
+
+        role = request.session.get("user_role")
+        if not role:
+            user = self.db.get_user_by_id(user_id)
+            role = user.get("role") if user else None
+            if role:
+                request.session["user_role"] = role
+
+        if role != "Technical Support":
+            return RedirectResponse(url="/learn", status_code=302)
+
+        return self.templates.TemplateResponse(request, "technical_support.html", {"request": request})
+
+    async def api_get_user_certificates(self, request: Request):
+        """Get certificates for a user by email or user_id."""
+        try:
+            data = await request.json()
+            email = data.get("email", "").strip()
+            user_id = data.get("user_id", "")
+
+            user = None
+            if email:
+                user_id = self.db.get_user_id_by_email(email)
+                if user_id:
+                    user = self.db.get_user_by_id(user_id)
+            elif user_id:
+                try:
+                    user_id = int(user_id)
+                    user = self.db.get_user_by_id(user_id)
+                except (ValueError, TypeError):
+                    pass
+
+            if not user:
+                return JSONResponse(status_code=404, content={"success": False, "message": "User not found."})
+
+            certificates = self.db.get_certificates_by_user(user["id"])
+            return JSONResponse(status_code=200, content={
+                "success": True,
+                "user": {"id": user["id"], "name": user["name"], "surname": user["surname"], "proficiency_level": user.get("proficiency_level")},
+                "certificates": certificates
+            })
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(e)})
+
+    async def api_get_all_pending_certificates(self, request: Request):
+        """Get all pending certificates (status = 0) across all users."""
+        admin_id = request.session.get("user_id")
+        if not admin_id:
+            return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+        try:
+            certificates = self.db.get_pending_certificates()
+            return JSONResponse(status_code=200, content={
+                "success": True,
+                "certificates": certificates
+            })
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(e)})
+
+    async def api_assess_certificate(self, request: Request):
+        """Assess a pending certificate and update user level."""
+        admin_id = request.session.get("user_id")
+        if not admin_id:
+            return JSONResponse(status_code=401, content={"success": False, "message": "Not authenticated."})
+
+        try:
+            data = await request.json()
+            certificate_id = data.get("certificate_id")
+            user_id = data.get("user_id")
+            level = data.get("level", "").upper()
+            note = data.get("note", "").strip()
+
+            if not all([certificate_id, user_id, level]):
+                return JSONResponse(status_code=400, content={"success": False, "message": "Missing required fields."})
+
+            valid_levels = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"]
+            if level not in valid_levels:
+                return JSONResponse(status_code=400, content={"success": False, "message": f"Invalid level. Must be one of: {', '.join(valid_levels)}"})
+
+            success, message = self.db.assess_certificate(certificate_id, user_id, level, note)
+            return JSONResponse(status_code=200, content={"success": success, "message": message})
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"success": False, "message": str(e)})
+
     async def register_user(
         self,
         name: str = Form(...),
@@ -209,10 +322,13 @@ class FluentMindApp:
 
         request.session["user_email"] = user_data["email"]
         request.session["user_id"] = user_data["id"]
+        request.session["user_role"] = user_data.get("role")
 
         full_user = self.db.get_user_by_id(user_data["id"])
         if full_user:
             request.session["proficiency_level"] = full_user.get("proficiency_level")
+            if not request.session.get("user_role"):
+                request.session["user_role"] = full_user.get("role")
 
         return RedirectResponse(url=f"/settings/{user_data['id']}", status_code=302)
 
@@ -220,6 +336,7 @@ class FluentMindApp:
         return {
             "user_id": request.session.get("user_id"),
             "user_email": request.session.get("user_email"),
+            "user_role": request.session.get("user_role"),
         }
 
     async def api_get_vocabulary(self, request: Request):

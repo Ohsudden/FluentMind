@@ -85,7 +85,8 @@ class PhoenixTracking:
                         model=model if "gpt" in model else "gpt-3.5-turbo",
                         temperature=temperature,
                         max_tokens=max_tokens,
-                        model_kwargs={"top_p": top_p, **kwargs}
+                        top_p=top_p,
+                        model_kwargs=kwargs
                     )
                 elif family.lower() == 'gemini':
                     if "GOOGLE_API_KEY" not in os.environ:
